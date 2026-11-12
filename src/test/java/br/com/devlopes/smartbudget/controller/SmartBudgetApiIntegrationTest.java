@@ -66,6 +66,33 @@ class SmartBudgetApiIntegrationTest {
     }
 
     @Test
+    @DisplayName("GET /v3/api-docs deve gerar definição OpenAPI para o Swagger UI sem erros")
+    void shouldExposeOpenApiDocs() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.openapi").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/assistant/chat']").exists());
+    }
+
+    @Test
+    @DisplayName("GET / deve encaminhar para o painel web interativo e rota inexistente deve retornar 404")
+    void shouldServeWebUiAndReturn404ForUnknownRoute() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl("index.html"));
+
+        mockMvc.perform(get("/index.html"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("Smart Budget AI")));
+
+        mockMvc.perform(get("/api/v1/rota-inexistente"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("/swagger-ui.html")));
+    }
+
+    @Test
     @DisplayName("POST /api/v1/assistant/chat deve responder via ChatModel mockado")
     void shouldProcessTextChatCommand() throws Exception {
         ChatResponse mockedChatResponse = new ChatResponse(

@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Budget AI — Consultor Financeiro</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-2: #273449;
+            --border: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --primary: #38bdf8;
+            --primary-dark: #0284c7;
+            --income: #22c55e;
+            --expense: #ef4444;
+            --warning-bg: rgba(239, 68, 68, 0.14);
+            --ok-bg: rgba(34, 197, 94, 0.14);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 24px 16px 48px;
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.6rem;
+        }
+
+        header p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .header-links {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .link-btn {
+            color: var(--text);
+            text-decoration: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+        }
+
+        .link-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .card-label {
+            color: var(--muted);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .card-value {
+            margin-top: 6px;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .income-text { color: var(--income); }
+        .expense-text { color: var(--expense); }
+
+        .alert-banner {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 22px;
+            border: 1px solid var(--border);
+            font-size: 0.94rem;
+        }
+
+        .alert-banner.deficit {
+            background: var(--warning-bg);
+            border-color: rgba(239, 68, 68, 0.5);
+            color: #fecaca;
+        }
+
+        .alert-banner.healthy {
+            background: var(--ok-bg);
+            border-color: rgba(34, 197, 94, 0.45);
+            color: #bbf7d0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        @media (max-width: 860px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+        }
+
+        .panel h2 {
+            margin: 0 0 6px;
+            font-size: 1.12rem;
+        }
+
+        .panel-subtitle {
+            margin: 0 0 14px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.84rem;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.94rem;
+            margin-bottom: 12px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 76px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 0.88rem;
+            color: var(--muted);
+        }
+
+        .checkbox-row input {
+            width: auto;
+            margin: 0;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: var(--primary);
+            color: #082f49;
+        }
+
+        button:hover {
+            background: #7dd3fc;
+        }
+
+        button.secondary {
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        button.recording {
+            background: var(--expense);
+            color: #fff;
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .divider {
+            border-top: 1px solid var(--border);
+            margin: 16px 0;
+        }
+
+        .response-box {
+            margin-top: 14px;
+            padding: 12px;
+            border-radius: 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            display: none;
+        }
+
+        .response-box.error {
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #fecaca;
+        }
+
+        .response-box.visible {
+            display: block;
+        }
+
+        .table-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filters select {
+            width: auto;
+            margin-bottom: 0;
+            padding: 7px 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 600;
+        }
+
+        .badge.income {
+            background: var(--ok-bg);
+            color: var(--income);
+        }
+
+        .badge.expense {
+            background: var(--warning-bg);
+            color: #fca5a5;
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--muted);
+            padding: 20px 8px;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <div>
+            <h1>Smart Budget AI</h1>
+            <p>Painel de testes interativo para Finanças Pessoais com Spring Boot 3, Spring AI e H2</p>
+        </div>
+        <div class="header-links">
+            <a class="link-btn" href="/swagger-ui.html" target="_blank">Swagger UI</a>
+            <a class="link-btn" href="/h2-console" target="_blank">Console H2</a>
+        </div>
+    </header>
+
+    <section class="cards">
+        <div class="card">
+            <div class="card-label">Total de Receitas</div>
+            <div id="totalIncome" class="card-value income-text">R$ 0,00</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Total de Despesas</div>
+            <div id="totalExpense" class="card-value expense-text">R$ 0,00</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Saldo Líquido</div>
+            <div id="netBalance" class="card-value">R$ 0,00</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Transações</div>
+            <div id="transactionCount" class="card-value">0</div>
+        </div>
+    </section>
+
+    <div id="alertBanner" class="alert-banner healthy">
+        Carregando resumo financeiro...
+    </div>
+
+    <div class="grid">
+        <!-- Painel Assistente IA (Texto + Voz) -->
+        <section class="panel">
+            <h2>Assistente Financeiro IA</h2>
+            <p class="panel-subtitle">Requer <code>OPENAI_API_KEY</code> configurada para responder via OpenAI + Tool Calling.</p>
+
+            <form id="chatForm">
+                <label for="chatMessage">Comando em texto</label>
+                <textarea id="chatMessage" placeholder="Ex: Gastei 85 reais no almoço hoje ou Qual meu saldo atual?"></textarea>
+
+                <label class="checkbox-row">
+                    <input type="checkbox" id="generateAudio">
+                    Gerar resposta também em áudio (TTS MP3)
+                </label>
+
+                <div class="btn-group">
+                    <button type="submit" id="sendChatBtn">Enviar Texto</button>
+                </div>
+            </form>
+
+            <div class="divider"></div>
+
+            <label for="audioFile">Comando por voz (gravar microfone ou enviar arquivo .mp3/.wav/.webm)</label>
+            <input type="file" id="audioFile" accept=".mp3,.wav,.m4a,.webm,.ogg,.oga,.flac,.mp4">
+
+            <div class="btn-group">
+                <button type="button" id="recordBtn" class="secondary">Gravar Microfone</button>
+                <button type="button" id="sendAudioBtn">Enviar Arquivo de Áudio</button>
+            </div>
+
+            <div id="aiResponseBox" class="response-box"></div>
+            <audio id="ttsPlayer" controls style="display:none;"></audio>
+        </section>
+
+        <!-- Painel Cadastro Manual REST (sem API Key) -->
+        <section class="panel">
+            <h2>Cadastro Manual (REST / H2)</h2>
+            <p class="panel-subtitle">Funciona 100% offline sem chave da OpenAI — ótimo para testar validações e saldo.</p>
+
+            <form id="txForm">
+                <label for="txDescription">Descrição</label>
+                <input type="text" id="txDescription" placeholder="Ex: Salário mensal, Almoço, Uber">
+
+                <div class="row">
+                    <div>
+                        <label for="txAmount">Valor (R$)</label>
+                        <input type="number" step="0.01" id="txAmount" placeholder="100.00">
+                    </div>
+                    <div>
+                        <label for="txType">Tipo</label>
+                        <select id="txType">
+                            <option value="EXPENSE">EXPENSE (Despesa)</option>
+                            <option value="INCOME">INCOME (Receita)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label for="txCategory">Categoria</label>
+                <select id="txCategory">
+                    <option value="FOOD">FOOD</option>
+                    <option value="TRANSPORT">TRANSPORT</option>
+                    <option value="SALARY">SALARY</option>
+                    <option value="TECH">TECH</option>
+                    <option value="HOUSING">HOUSING</option>
+                    <option value="HEALTH">HEALTH</option>
+                    <option value="ENTERTAINMENT">ENTERTAINMENT</option>
+                    <option value="OTHER">OTHER</option>
+                </select>
+
+                <button type="submit">Registrar Transação</button>
+            </form>
+
+            <div id="txFeedbackBox" class="response-box"></div>
+        </section>
+    </div>
+
+    <!-- Tabela de Auditoria -->
+    <section class="panel">
+        <div class="table-header">
+            <div>
+                <h2>Transações Registradas no H2</h2>
+            </div>
+            <div class="filters">
+                <select id="filterCategory">
+                    <option value="">Todas categorias</option>
+                    <option value="FOOD">FOOD</option>
+                    <option value="TRANSPORT">TRANSPORT</option>
+                    <option value="SALARY">SALARY</option>
+                    <option value="TECH">TECH</option>
+                    <option value="HOUSING">HOUSING</option>
+                    <option value="HEALTH">HEALTH</option>
+                    <option value="ENTERTAINMENT">ENTERTAINMENT</option>
+                    <option value="OTHER">OTHER</option>
+                </select>
+                <select id="filterType">
+                    <option value="">Todos tipos</option>
+                    <option value="INCOME">INCOME</option>
+                    <option value="EXPENSE">EXPENSE</option>
+                </select>
+                <button type="button" class="secondary" id="refreshBtn">Atualizar</button>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Descrição</th>
+                <th>Categoria</th>
+                <th>Tipo</th>
+                <th>Valor</th>
+                <th>Data</th>
+            </tr>
+            </thead>
+            <tbody id="txTableBody">
+            <tr><td colspan="6" class="empty">Nenhuma transação registrada ainda.</td></tr>
+            </tbody>
+        </table>
+    </section>
+</div>
+
+<script>
+    const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    const totalIncomeEl = document.getElementById('totalIncome');
+    const totalExpenseEl = document.getElementById('totalExpense');
+    const netBalanceEl = document.getElementById('netBalance');
+    const transactionCountEl = document.getElementById('transactionCount');
+    const alertBannerEl = document.getElementById('alertBanner');
+    const txTableBody = document.getElementById('txTableBody');
+    const filterCategory = document.getElementById('filterCategory');
+    const filterType = document.getElementById('filterType');
+    const aiResponseBox = document.getElementById('aiResponseBox');
+    const txFeedbackBox = document.getElementById('txFeedbackBox');
+    const ttsPlayer = document.getElementById('ttsPlayer');
+
+    function showBox(el, text, isError = false) {
+        el.textContent = text;
+        el.classList.toggle('error', isError);
+        el.classList.add('visible');
+    }
+
+    function formatError(data, status) {
+        const details = Array.isArray(data?.details) && data.details.length
+            ? '\nDetalhes: ' + data.details.join('; ')
+            : '';
+        return `Erro HTTP ${status} (${data?.error || 'Falha'}): ${data?.message || 'Erro inesperado.'}${details}`;
+    }
+
+    async function loadSummary() {
+        const res = await fetch('/api/v1/transactions/summary');
+        const data = await res.json();
+        totalIncomeEl.textContent = brl.format(data.totalIncome || 0);
+        totalExpenseEl.textContent = brl.format(data.totalExpense || 0);
+        netBalanceEl.textContent = brl.format(data.netBalance || 0);
+        netBalanceEl.className = 'card-value ' + ((data.netBalance || 0) < 0 ? 'expense-text' : 'income-text');
+        transactionCountEl.textContent = String(data.transactionCount ?? 0);
+
+        alertBannerEl.textContent = data.alertMessage || '';
+        alertBannerEl.className = 'alert-banner ' + (data.deficitAlert ? 'deficit' : 'healthy');
+    }
+
+    async function loadTransactions() {
+        const params = new URLSearchParams();
+        if (filterCategory.value) params.set('category', filterCategory.value);
+        if (filterType.value) params.set('type', filterType.value);
+
+        const url = '/api/v1/transactions' + (params.toString() ? '?' + params.toString() : '');
+        const res = await fetch(url);
+        const list = await res.json();
+
+        txTableBody.textContent = '';
+        if (!Array.isArray(list) || list.length === 0) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 6;
+            td.className = 'empty';
+            td.textContent = 'Nenhuma transação encontrada.';
+            tr.appendChild(td);
+            txTableBody.appendChild(tr);
+            return;
+        }
+
+        for (const tx of list) {
+            const tr = document.createElement('tr');
+
+            const tdId = document.createElement('td');
+            tdId.textContent = tx.id;
+
+            const tdDesc = document.createElement('td');
+            tdDesc.textContent = tx.description;
+
+            const tdCat = document.createElement('td');
+            tdCat.textContent = tx.category;
+
+            const tdType = document.createElement('td');
+            const badge = document.createElement('span');
+            badge.className = 'badge ' + (tx.type === 'INCOME' ? 'income' : 'expense');
+            badge.textContent = tx.type;
+            tdType.appendChild(badge);
+
+            const tdAmount = document.createElement('td');
+            tdAmount.textContent = brl.format(tx.amount);
+
+            const tdDate = document.createElement('td');
+            tdDate.textContent = tx.createdAt ? new Date(tx.createdAt).toLocaleString('pt-BR') : '-';
+
+            tr.append(tdId, tdDesc, tdCat, tdType, tdAmount, tdDate);
+            txTableBody.appendChild(tr);
+        }
+    }
+
+    async function refreshDashboard() {
+        await Promise.all([loadSummary(), loadTransactions()]);
+    }
+
+    document.getElementById('txForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            description: document.getElementById('txDescription').value,
+            amount: Number(document.getElementById('txAmount').value),
+            type: document.getElementById('txType').value,
+            category: document.getElementById('txCategory').value
+        };
+
+        const res = await fetch('/api/v1/transactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            showBox(txFeedbackBox, formatError(data, res.status), true);
+            return;
+        }
+
+        showBox(txFeedbackBox, `Transação #${data.id} "${data.description}" (${brl.format(data.amount)}) salva com sucesso!`);
+        document.getElementById('txDescription').value = '';
+        document.getElementById('txAmount').value = '';
+        await refreshDashboard();
+    });
+
+    function handleAssistantSuccess(data) {
+        let text = '';
+        if (data.transcribedText) {
+            text += `Transcrição: "${data.transcribedText}"\n\n`;
+        }
+        text += `Consultor AI:\n${data.response}`;
+        showBox(aiResponseBox, text, false);
+
+        if (data.audioBase64) {
+            ttsPlayer.src = 'data:audio/mpeg;base64,' + data.audioBase64;
+            ttsPlayer.style.display = 'block';
+            ttsPlayer.play().catch(() => {});
+        } else {
+            ttsPlayer.style.display = 'none';
+            ttsPlayer.removeAttribute('src');
+        }
+    }
+
+    document.getElementById('chatForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = document.getElementById('chatMessage').value;
+        const generateAudio = document.getElementById('generateAudio').checked;
+        const btn = document.getElementById('sendChatBtn');
+
+        btn.disabled = true;
+        showBox(aiResponseBox, 'Consultando Smart Budget AI...');
+        try {
+            const res = await fetch('/api/v1/assistant/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, generateAudio })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                showBox(aiResponseBox, formatError(data, res.status), true);
+                return;
+            }
+            handleAssistantSuccess(data);
+            await refreshDashboard();
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    async function sendAudioBlob(fileOrBlob, filename) {
+        const generateAudio = document.getElementById('generateAudio').checked;
+        const formData = new FormData();
+        formData.append('audio', fileOrBlob, filename);
+
+        showBox(aiResponseBox, 'Transcrevendo áudio e consultando Smart Budget AI...');
+        const res = await fetch(`/api/v1/assistant/voice?generateAudio=${generateAudio}`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            showBox(aiResponseBox, formatError(data, res.status), true);
+            return;
+        }
+        handleAssistantSuccess(data);
+        await refreshDashboard();
+    }
+
+    document.getElementById('sendAudioBtn').addEventListener('click', async () => {
+        const input = document.getElementById('audioFile');
+        const file = input.files[0];
+        if (!file) {
+            showBox(aiResponseBox, 'Selecione um arquivo de áudio (.mp3, .wav, .webm...) primeiro.', true);
+            return;
+        }
+        await sendAudioBlob(file, file.name);
+    });
+
+    // Gravação direta do microfone via MediaRecorder
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    const recordBtn = document.getElementById('recordBtn');
+
+    recordBtn.addEventListener('click', async () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            recordBtn.textContent = 'Gravar Microfone';
+            recordBtn.classList.remove('recording');
+            return;
+        }
+
+        if (!navigator.mediaDevices?.getUserMedia) {
+            showBox(aiResponseBox, 'Seu navegador não suporta gravação de microfone.', true);
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = (ev) => {
+                if (ev.data.size > 0) recordedChunks.push(ev.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                stream.getTracks().forEach(t => t.stop());
+                const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                await sendAudioBlob(blob, 'comando-voz.webm');
+            };
+
+            mediaRecorder.start();
+            recordBtn.textContent = 'Parar e Enviar Áudio';
+            recordBtn.classList.add('recording');
+        } catch (err) {
+            showBox(aiResponseBox, 'Permissão de microfone negada ou indisponível: ' + err.message, true);
+        }
+    });
+
+    filterCategory.addEventListener('change', loadTransactions);
+    filterType.addEventListener('change', loadTransactions);
+    document.getElementById('refreshBtn').addEventListener('click', refreshDashboard);
+
+    refreshDashboard();
+</script>
+</body>
+</html>
