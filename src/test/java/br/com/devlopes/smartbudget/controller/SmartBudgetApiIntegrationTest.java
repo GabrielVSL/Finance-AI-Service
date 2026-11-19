@@ -35,9 +35,12 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,6 +66,84 @@ class SmartBudgetApiIntegrationTest {
     @BeforeEach
     void setUp() {
         transactionRepository.deleteAll();
+    }
+
+    @Test
+    @DisplayName("GET /health deve retornar 200 UP para keep-alive")
+    void shouldReturnHealthUp() throws Exception {
+        mockMvc.perform(get("/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.service").value("smart-budget-ai"));
+    }
+
+    @Test
+    @DisplayName("X-Session-Id deve isolar transações e limpeza entre visitantes diferentes")
+    void shouldIsolateTransactionsBySessionId() throws Exception {
+        String payloadA = """
+                {
+                  "description": "Salário Visitante A",
+                  "amount": 5000.00,
+                  "type": "INCOME",
+                  "category": "SALARY"
+                }
+                """;
+        String payloadB = """
+                {
+                  "description": "Café Visitante B",
+                  "amount": 15.00,
+                  "type": "EXPENSE",
+                  "category": "FOOD"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .header("X-Session-Id", "sessao-a")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payloadA))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("X-Session-Id", "sessao-a"));
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .header("X-Session-Id", "sessao-b")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payloadB))
+                .andExpect(status().isCreated());
+
+        // Visitante A vê apenas suas transações
+        mockMvc.perform(get("/api/v1/transactions").header("X-Session-Id", "sessao-a"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].description").value("Salário Visitante A"));
+
+        // Visitante B vê apenas suas transações
+        mockMvc.perform(get("/api/v1/transactions").header("X-Session-Id", "sessao-b"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].description").value("Café Visitante B"));
+
+        // Limpar sessão A não afeta sessão B
+        mockMvc.perform(delete("/api/v1/transactions").header("X-Session-Id", "sessao-a"))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/transactions").header("X-Session-Id", "sessao-a"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(get("/api/v1/transactions").header("X-Session-Id", "sessao-b"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("CORS preflight deve permitir origem externa e header X-Session-Id")
+    void shouldAllowCorsForExternalFrontend() throws Exception {
+        mockMvc.perform(options("/api/v1/transactions")
+                        .header("Origin", "https://meu-front-unificado.vercel.app")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "X-Session-Id,Content-Type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://meu-front-unificado.vercel.app"));
     }
 
     @Test
@@ -93,6 +174,36 @@ class SmartBudgetApiIntegrationTest {
     }
 
     @Test
+    @DisplayName("GET /api/v1/assistant/providers deve listar Groq e Gemini disponíveis")
+    void shouldListAiProviders() throws Exception {
+        mockMvc.perform(get("/api/v1/assistant/providers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value("groq"))
+                .andExpect(jsonPath("$[0].supportsVoiceTranscription").value(true))
+                .andExpect(jsonPath("$[1].id").value("gemini"))
+                .andExpect(jsonPath("$[1].supportsVoiceTranscription").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/assistant/chat deve retornar 400 para provedor de IA desconhecido")
+    void shouldReturnBadRequestForInvalidProvider() throws Exception {
+        String payload = """
+                {
+                  "message": "Qual meu saldo?",
+                  "provider": "inexistente"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/assistant/chat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Provedor de IA Inválido"));
+    }
+
+    @Test
     @DisplayName("POST /api/v1/assistant/chat deve responder via ChatModel mockado")
     void shouldProcessTextChatCommand() throws Exception {
         ChatResponse mockedChatResponse = new ChatResponse(
@@ -103,7 +214,8 @@ class SmartBudgetApiIntegrationTest {
         String payload = """
                 {
                   "message": "Gastei 85,50 no almoço",
-                  "generateAudio": false
+                  "generateAudio": false,
+                  "provider": "groq"
                 }
                 """;
 
@@ -112,6 +224,7 @@ class SmartBudgetApiIntegrationTest {
                         .content(payload))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response").value("Despesa de R$ 85,50 registrada na categoria FOOD."))
+                .andExpect(jsonPath("$.providerUsed").value("groq"))
                 .andExpect(jsonPath("$.transcribedText").doesNotExist())
                 .andExpect(jsonPath("$.timestamp").exists());
     }
@@ -144,6 +257,30 @@ class SmartBudgetApiIntegrationTest {
                 .andExpect(jsonPath("$.transcribedText").value("Qual meu saldo atual?"))
                 .andExpect(jsonPath("$.response").value("Seu saldo líquido atual é de R$ 1.500,00."))
                 .andExpect(jsonPath("$.audioBase64").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/assistant/chat com generateAudio=true deve manter resposta textual se provedor não suportar TTS (ex: Groq)")
+    void shouldGracefullyFallbackWhenTtsIsNotSupported() throws Exception {
+        ChatResponse mockedChatResponse = new ChatResponse(
+                List.of(new Generation(new AssistantMessage("Receita de R$ 5.000,00 registrada com sucesso.")))
+        );
+        when(chatModel.call(any(Prompt.class))).thenReturn(mockedChatResponse);
+        when(speechModel.call(any(SpeechPrompt.class))).thenThrow(new RuntimeException("404 Not Found: TTS not supported on Groq"));
+
+        String payload = """
+                {
+                  "message": "Recebi 5000 de salário",
+                  "generateAudio": true
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/assistant/chat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Receita de R$ 5.000,00 registrada com sucesso."))
+                .andExpect(jsonPath("$.audioBase64").doesNotExist());
     }
 
     @Test

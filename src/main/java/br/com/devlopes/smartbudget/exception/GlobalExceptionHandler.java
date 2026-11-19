@@ -76,16 +76,31 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
+    @ExceptionHandler(InvalidAiProviderException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidAiProvider(
+            InvalidAiProviderException ex,
+            HttpServletRequest request
+    ) {
+        log.warn("Provedor de IA inválido em {}: {}", request.getRequestURI(), ex.getMessage());
+        ApiErrorResponse error = new ApiErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Provedor de IA Inválido",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.badRequest().body(error);
+    }
+
     @ExceptionHandler({NonTransientAiException.class, TransientAiException.class, RestClientException.class})
     public ResponseEntity<ApiErrorResponse> handleAiProviderError(
             Exception ex,
             HttpServletRequest request
     ) {
-        log.error("Falha de comunicação com provedor OpenAI em {}: {}", request.getRequestURI(), ex.getMessage());
+        log.error("Falha de comunicação com provedor de IA em {}: {}", request.getRequestURI(), ex.getMessage());
         ApiErrorResponse error = new ApiErrorResponse(
                 HttpStatus.BAD_GATEWAY.value(),
                 "Erro no Provedor de IA",
-                "Não foi possível se comunicar com o provedor OpenAI. Verifique sua OPENAI_API_KEY ou tente novamente.",
+                "Não foi possível se comunicar com o provedor de IA. Verifique AI_API_KEY (Groq) ou GEMINI_API_KEY e tente novamente.",
                 request.getRequestURI(),
                 safeDetails(ex.getMessage())
         );

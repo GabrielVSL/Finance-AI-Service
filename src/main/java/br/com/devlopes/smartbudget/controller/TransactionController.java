@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -75,5 +76,16 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> createTransaction(@Valid @RequestBody TransactionRequest request) {
         TransactionResponse created = transactionService.registerTransaction(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @DeleteMapping
+    @Operation(
+            summary = "Limpar transações da sessão atual",
+            description = "Remove apenas as transações pertencentes à sessão identificada pelo header X-Session-Id."
+    )
+    @ApiResponse(responseCode = "204", description = "Transações da sessão removidas com sucesso")
+    public ResponseEntity<Void> clearCurrentSession() {
+        transactionService.clearCurrentSessionTransactions();
+        return ResponseEntity.noContent().build();
     }
 }

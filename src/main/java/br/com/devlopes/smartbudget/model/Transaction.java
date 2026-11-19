@@ -1,5 +1,6 @@
 package br.com.devlopes.smartbudget.model;
 
+import br.com.devlopes.smartbudget.config.SessionContext;
 import br.com.devlopes.smartbudget.exception.InvalidTransactionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -8,6 +9,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
@@ -17,12 +19,20 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Entity
-@Table(name = "transactions")
+@Table(
+        name = "transactions",
+        indexes = {
+                @Index(name = "idx_transactions_session_created", columnList = "session_id, created_at")
+        }
+)
 public class Transaction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "session_id", nullable = false, length = 64)
+    private String sessionId;
 
     @Column(nullable = false, length = 255)
     private String description;
@@ -46,7 +56,18 @@ public class Transaction {
     }
 
     public Transaction(String description, BigDecimal amount, TransactionType type, TransactionCategory category) {
+        this(SessionContext.getCurrentSessionId(), description, amount, type, category);
+    }
+
+    public Transaction(
+            String sessionId,
+            String description,
+            BigDecimal amount,
+            TransactionType type,
+            TransactionCategory category
+    ) {
         validate(description, amount, type, category);
+        this.sessionId = SessionContext.sanitize(sessionId);
         this.description = description.trim();
         this.amount = amount.setScale(2, RoundingMode.HALF_UP);
         this.type = type;
@@ -76,6 +97,9 @@ public class Transaction {
 
     @PrePersist
     protected void onCreate() {
+        if (this.sessionId == null || this.sessionId.isBlank()) {
+            this.sessionId = SessionContext.DEFAULT_SESSION_ID;
+        }
         if (this.createdAt == null) {
             this.createdAt = LocalDateTime.now();
         }
@@ -83,6 +107,10 @@ public class Transaction {
 
     public Long getId() {
         return id;
+    }
+
+    public String getSessionId() {
+        return sessionId;
     }
 
     public String getDescription() {

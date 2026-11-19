@@ -16,7 +16,14 @@ public record ChatRequest(
                 example = "false",
                 defaultValue = "false"
         )
-        Boolean generateAudio
+        Boolean generateAudio,
+
+        @Schema(
+                description = "Provedor de IA opcional: 'groq' ou 'gemini'. Se omitido, usa o provedor padrão configurado.",
+                example = "groq",
+                allowableValues = {"groq", "gemini"}
+        )
+        String provider
 ) {
     public boolean shouldGenerateAudio() {
         return Boolean.TRUE.equals(generateAudio);

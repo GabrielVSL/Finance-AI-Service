@@ -5,18 +5,27 @@ import br.com.devlopes.smartbudget.model.TransactionCategory;
 import br.com.devlopes.smartbudget.model.TransactionType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
-    List<Transaction> findAllByOrderByCreatedAtDesc();
+    List<Transaction> findBySessionIdOrderByCreatedAtDesc(String sessionId);
 
-    List<Transaction> findByCategoryOrderByCreatedAtDesc(TransactionCategory category);
+    List<Transaction> findBySessionIdAndCategoryOrderByCreatedAtDesc(
+            String sessionId,
+            TransactionCategory category
+    );
 
-    List<Transaction> findByTypeOrderByCreatedAtDesc(TransactionType type);
+    List<Transaction> findBySessionIdAndTypeOrderByCreatedAtDesc(
+            String sessionId,
+            TransactionType type
+    );
 
-    List<Transaction> findByCategoryAndTypeOrderByCreatedAtDesc(
+    List<Transaction> findBySessionIdAndCategoryAndTypeOrderByCreatedAtDesc(
+            String sessionId,
             TransactionCategory category,
             TransactionType type
     );
@@ -28,7 +37,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                 COUNT(t)
             )
             FROM Transaction t
+            WHERE t.sessionId = :sessionId
             GROUP BY t.type
             """)
-    List<TypeAggregate> summarizeByType();
+    List<TypeAggregate> summarizeByTypeAndSessionId(@Param("sessionId") String sessionId);
+
+    long deleteBySessionId(String sessionId);
+
+    long deleteByCreatedAtBefore(LocalDateTime cutoff);
 }

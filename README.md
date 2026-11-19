@@ -45,7 +45,9 @@ flowchart LR
 | **Validações de Domínio** | Regras na entidade `Transaction` e no `TransactionService` (além de Bean Validation nos DTOs) impedindo valores menores ou iguais a zero, descrições vazias ou categorias/tipos inválidos, lançando `InvalidTransactionException`. |
 | **Endpoint Híbrido (Texto e Voz)** | Adição do endpoint `POST /api/v1/assistant/chat` para testes imediatos via Swagger UI ou cURL sem necessidade de upload de áudio, além do suporte opcional a resposta falada (`generateAudio=true`). |
 | **Tratamento Global de Erros** | `@RestControllerAdvice` (`GlobalExceptionHandler`) padronizando erros no record `ApiErrorResponse` com semântica HTTP precisa: `400 Bad Request` (validação sintática e formato de áudio), `422 Unprocessable Entity` (regras de negócio / domínio), `502 Bad Gateway` (falha de comunicação/autenticação com a OpenAI) e `500 Internal Server Error`. |
-| **Configuração Resiliente & Testes Offline** | Fallback `OPENAI_API_KEY:demo-key` no `application.yml` para inicializar a aplicação sem chave real e suíte com `@SpringBootTest` + Mockito testando as Tools, regras de domínio, `@RestControllerAdvice` e controllers sem consumir créditos da OpenAI. |
+| **Roteador Multi-Provedor (Groq + Gemini)** | Padrão Strategy/Router (`AiProviderRouter`) permitindo alternar em tempo de execução entre **Groq (Llama 3.3 70B)** e **Google Gemini (2.5 Flash)** via `provider: "groq" | "gemini"`, com descoberta em `GET /api/v1/assistant/providers` e **fallback automático** caso um provedor falhe. |
+| **Isolamento de Sessão & Pronto para Deploy** | Isolamento por visitante via header `X-Session-Id` (`localStorage` no front) + `DELETE /api/v1/transactions`, limpeza automática `@Scheduled` no H2, `CORS` configurável e endpoint leve `GET /health` para keep-alive. |
+| **Configuração Resiliente & Testes Offline** | Fallback `demo-key` no `application.yml` para inicializar a aplicação sem chave real e suíte com `@SpringBootTest` + Mockito testando as Tools, roteamento multi-provedor, isolamento por sessão, `@RestControllerAdvice` e controllers 100% offline. |
 
 ---
 
@@ -104,7 +106,10 @@ src/main/java/br/com/devlopes/smartbudget
 ### Pré-requisitos
 - **Java 21** instalado
 - **Maven 3.9+** instalado
-- Uma chave da OpenAI (`OPENAI_API_KEY`) para chamadas reais de IA *(opcional para subir a aplicação ou rodar os testes automatizados)*
+- **Chave de IA (Opcional — 100% Gratuitas):**
+  - **Groq (Recomendado — Chat + Tool Calling + Whisper Voz):** gere uma chave grátis em [console.groq.com/keys](https://console.groq.com/keys) (`AI_API_KEY=gsk_...`).
+  - **Google Gemini (Chat + Tool Calling + Fallback automático):** gere uma chave grátis em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (`GEMINI_API_KEY=AIza...`).
+  - *(Sem nenhuma chave, a aplicação sobe normalmente com fallback `demo-key` e toda a suíte de testes passa 100% offline).*
 
 ### 1. Executar os testes automatizados (sem API Key)
 ```bash
@@ -112,20 +117,30 @@ mvn test
 ```
 
 ### 2. Subir a aplicação localmente
-Sem variável de ambiente (usa o fallback `demo-key`, ideal para inspecionar Swagger, H2 e endpoints REST):
-```bash
-mvn spring-boot:run
-```
 
-Com uma chave real da OpenAI (para testar transcrição, ChatClient com Tool Calling e TTS ao vivo):
+#### Opção A — 100% Gratuito com Groq + Google Gemini (Multi-Provedor + Fallback):
 ```powershell
 # Windows PowerShell
-$env:OPENAI_API_KEY="sk-sua-chave-aqui"
+$env:AI_API_KEY="gsk_sua_chave_groq_aqui"
+$env:GEMINI_API_KEY="AIza_sua_chave_gemini_aqui"
+mvn spring-boot:run
+```
+```cmd
+:: Windows CMD
+set AI_API_KEY=gsk_sua_chave_groq_aqui
+set GEMINI_API_KEY=AIza_sua_chave_gemini_aqui
 mvn spring-boot:run
 ```
 ```bash
 # Linux / macOS
-export OPENAI_API_KEY="sk-sua-chave-aqui"
+export AI_API_KEY="gsk_sua_chave_groq_aqui"
+export GEMINI_API_KEY="AIza_sua_chave_gemini_aqui"
+mvn spring-boot:run
+```
+*(Você também pode subir apenas com `AI_API_KEY` ou apenas com `GEMINI_API_KEY` — o roteador seleciona automaticamente o provedor configurado!)*
+
+#### Opção B — Modo Offline / Demonstração (sem chave de API):
+```bash
 mvn spring-boot:run
 ```
 

@@ -374,7 +374,13 @@
         <!-- Painel Assistente IA (Texto + Voz) -->
         <section class="panel">
             <h2>Assistente Financeiro IA</h2>
-            <p class="panel-subtitle">Requer <code>OPENAI_API_KEY</code> configurada para responder via OpenAI + Tool Calling.</p>
+            <p class="panel-subtitle">Multi-provedor gratuito: alterne entre <strong>Groq (<code>AI_API_KEY</code>)</strong> e <strong>Google Gemini (<code>GEMINI_API_KEY</code>)</strong> com Tool Calling e Whisper STT.</p>
+
+            <label for="aiProvider">Provedor de IA</label>
+            <select id="aiProvider">
+                <option value="groq">Groq (Llama 3.3 70B)</option>
+                <option value="gemini">Google Gemini (2.5 Flash)</option>
+            </select>
 
             <form id="chatForm">
                 <label for="chatMessage">Comando em texto</label>
@@ -470,6 +476,7 @@
                     <option value="EXPENSE">EXPENSE</option>
                 </select>
                 <button type="button" class="secondary" id="refreshBtn">Atualizar</button>
+                <button type="button" class="secondary" id="clearSessionBtn">Limpar Sessão</button>
             </div>
         </div>
 
@@ -493,6 +500,24 @@
 
 <script>
     const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+    const SESSION_KEY = 'smartbudget_session_id';
+
+    function getOrCreateSessionId() {
+        let id = localStorage.getItem(SESSION_KEY);
+        if (!id) {
+            id = (window.crypto && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+            localStorage.setItem(SESSION_KEY, id);
+        }
+        return id;
+    }
+
+    function apiFetch(url, options = {}) {
+        const headers = new Headers(options.headers || {});
+        headers.set('X-Session-Id', getOrCreateSessionId());
+        return fetch(url, { ...options, headers });
+    }
 
     const totalIncomeEl = document.getElementById('totalIncome');
     const totalExpenseEl = document.getElementById('totalExpense');
@@ -505,6 +530,25 @@
     const aiResponseBox = document.getElementById('aiResponseBox');
     const txFeedbackBox = document.getElementById('txFeedbackBox');
     const ttsPlayer = document.getElementById('ttsPlayer');
+    const aiProviderSelect = document.getElementById('aiProvider');
+
+    async function loadProviders() {
+        try {
+            const res = await apiFetch('/api/v1/assistant/providers');
+            if (!res.ok) return;
+            const providers = await res.json();
+            aiProviderSelect.textContent = '';
+            for (const p of providers) {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `${p.label} — ${p.configured ? 'Ativo' : 'Sem chave'}`;
+                if (p.defaultProvider) opt.selected = true;
+                aiProviderSelect.appendChild(opt);
+            }
+        } catch (_) {
+            // Mantém opções padrão no select
+        }
+    }
 
     function showBox(el, text, isError = false) {
         el.textContent = text;
@@ -520,7 +564,7 @@
     }
 
     async function loadSummary() {
-        const res = await fetch('/api/v1/transactions/summary');
+        const res = await apiFetch('/api/v1/transactions/summary');
         const data = await res.json();
         totalIncomeEl.textContent = brl.format(data.totalIncome || 0);
         totalExpenseEl.textContent = brl.format(data.totalExpense || 0);
@@ -538,7 +582,7 @@
         if (filterType.value) params.set('type', filterType.value);
 
         const url = '/api/v1/transactions' + (params.toString() ? '?' + params.toString() : '');
-        const res = await fetch(url);
+        const res = await apiFetch(url);
         const list = await res.json();
 
         txTableBody.textContent = '';
@@ -595,7 +639,7 @@
             category: document.getElementById('txCategory').value
         };
 
-        const res = await fetch('/api/v1/transactions', {
+        const res = await apiFetch('/api/v1/transactions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -615,6 +659,9 @@
 
     function handleAssistantSuccess(data) {
         let text = '';
+        if (data.providerUsed) {
+            text += `[Provedor: ${data.providerUsed.toUpperCase()}]\n`;
+        }
         if (data.transcribedText) {
             text += `Transcrição: "${data.transcribedText}"\n\n`;
         }
@@ -635,15 +682,16 @@
         e.preventDefault();
         const message = document.getElementById('chatMessage').value;
         const generateAudio = document.getElementById('generateAudio').checked;
+        const provider = aiProviderSelect.value;
         const btn = document.getElementById('sendChatBtn');
 
         btn.disabled = true;
-        showBox(aiResponseBox, 'Consultando Smart Budget AI...');
+        showBox(aiResponseBox, `Consultando Smart Budget AI (${provider.toUpperCase()})...`);
         try {
-            const res = await fetch('/api/v1/assistant/chat', {
+            const res = await apiFetch('/api/v1/assistant/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message, generateAudio })
+                body: JSON.stringify({ message, generateAudio, provider })
             });
             const data = await res.json();
             if (!res.ok) {
@@ -659,11 +707,12 @@
 
     async function sendAudioBlob(fileOrBlob, filename) {
         const generateAudio = document.getElementById('generateAudio').checked;
+        const provider = aiProviderSelect.value;
         const formData = new FormData();
         formData.append('audio', fileOrBlob, filename);
 
-        showBox(aiResponseBox, 'Transcrevendo áudio e consultando Smart Budget AI...');
-        const res = await fetch(`/api/v1/assistant/voice?generateAudio=${generateAudio}`, {
+        showBox(aiResponseBox, `Transcrevendo áudio e consultando Smart Budget AI (${provider.toUpperCase()})...`);
+        const res = await apiFetch(`/api/v1/assistant/voice?generateAudio=${generateAudio}&provider=${encodeURIComponent(provider)}`, {
             method: 'POST',
             body: formData
         });
@@ -730,7 +779,15 @@
     filterCategory.addEventListener('change', loadTransactions);
     filterType.addEventListener('change', loadTransactions);
     document.getElementById('refreshBtn').addEventListener('click', refreshDashboard);
+    document.getElementById('clearSessionBtn').addEventListener('click', async () => {
+        const res = await apiFetch('/api/v1/transactions', { method: 'DELETE' });
+        if (res.ok) {
+            showBox(txFeedbackBox, 'Transações da sua sessão atual foram limpas com sucesso.');
+            await refreshDashboard();
+        }
+    });
 
+    loadProviders();
     refreshDashboard();
 </script>
 </body>

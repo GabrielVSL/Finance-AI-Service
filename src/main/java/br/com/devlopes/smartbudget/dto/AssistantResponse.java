@@ -16,14 +16,22 @@ public record AssistantResponse(
         @Schema(description = "Áudio da resposta em MP3 codificado em Base64 (opcional)")
         String audioBase64,
 
+        @Schema(description = "Provedor de IA que gerou a resposta (ex: groq ou gemini)", example = "groq")
+        String providerUsed,
+
         @Schema(description = "Data e hora do processamento")
         LocalDateTime timestamp
 ) {
-    public static AssistantResponse ofText(String response, String audioBase64) {
-        return new AssistantResponse(null, response, audioBase64, LocalDateTime.now());
+    public static AssistantResponse ofText(String response, String audioBase64, String providerUsed) {
+        return new AssistantResponse(null, response, audioBase64, providerUsed, LocalDateTime.now());
     }
 
-    public static AssistantResponse ofVoice(String transcribedText, String response, String audioBase64) {
-        return new AssistantResponse(transcribedText, response, audioBase64, LocalDateTime.now());
+    public static AssistantResponse ofVoice(
+            String transcribedText,
+            String response,
+            String audioBase64,
+            String providerUsed
+    ) {
+        return new AssistantResponse(transcribedText, response, audioBase64, providerUsed, LocalDateTime.now());
     }
 }

@@ -44,7 +44,7 @@ public class AudioService {
     public AudioService(
             OpenAiAudioTranscriptionModel transcriptionModel,
             OpenAiAudioSpeechModel speechModel,
-            @Value("${spring.ai.openai.audio.transcription.options.model:whisper-1}") String whisperModel,
+            @Value("${spring.ai.openai.audio.transcription.options.model:whisper-large-v3-turbo}") String whisperModel,
             @Value("${spring.ai.openai.audio.transcription.options.language:pt}") String language,
             @Value("${spring.ai.openai.audio.speech.options.model:tts-1}") String ttsModel
     ) {

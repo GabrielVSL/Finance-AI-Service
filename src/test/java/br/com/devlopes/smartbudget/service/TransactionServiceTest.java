@@ -1,5 +1,6 @@
 package br.com.devlopes.smartbudget.service;
 
+import br.com.devlopes.smartbudget.config.SessionContext;
 import br.com.devlopes.smartbudget.dto.FinancialSummaryResponse;
 import br.com.devlopes.smartbudget.dto.TransactionResponse;
 import br.com.devlopes.smartbudget.exception.InvalidTransactionException;
@@ -8,10 +9,11 @@ import br.com.devlopes.smartbudget.model.TransactionCategory;
 import br.com.devlopes.smartbudget.model.TransactionType;
 import br.com.devlopes.smartbudget.repository.TransactionRepository;
 import br.com.devlopes.smartbudget.repository.TypeAggregate;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -31,8 +33,18 @@ class TransactionServiceTest {
     @Mock
     private TransactionRepository transactionRepository;
 
-    @InjectMocks
     private TransactionService transactionService;
+
+    @BeforeEach
+    void setUp() {
+        SessionContext.clear();
+        transactionService = new TransactionService(transactionRepository, 24L);
+    }
+
+    @AfterEach
+    void tearDown() {
+        SessionContext.clear();
+    }
 
     @Test
     @DisplayName("Deve salvar transação válida com escala monetária padronizada")
@@ -77,10 +89,11 @@ class TransactionServiceTest {
     @Test
     @DisplayName("Deve calcular saldo líquido empatado sem alerta de déficit a partir de agregação SQL")
     void shouldHandleBalancedBudgetSummary() {
-        when(transactionRepository.summarizeByType()).thenReturn(List.of(
-                new TypeAggregate(TransactionType.INCOME, new BigDecimal("2000.00"), 1L),
-                new TypeAggregate(TransactionType.EXPENSE, new BigDecimal("2000.00"), 1L)
-        ));
+        when(transactionRepository.summarizeByTypeAndSessionId(SessionContext.DEFAULT_SESSION_ID))
+                .thenReturn(List.of(
+                        new TypeAggregate(TransactionType.INCOME, new BigDecimal("2000.00"), 1L),
+                        new TypeAggregate(TransactionType.EXPENSE, new BigDecimal("2000.00"), 1L)
+                ));
 
         FinancialSummaryResponse summary = transactionService.calculateFinancialSummary();
 
