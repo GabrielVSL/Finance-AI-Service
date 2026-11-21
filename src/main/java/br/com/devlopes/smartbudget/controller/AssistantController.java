@@ -81,7 +81,8 @@ public class AssistantController {
         return ResponseEntity.ok(assistantService.processTextCommand(
                 request.message(),
                 request.shouldGenerateAudio(),
-                request.provider()
+                request.provider(),
+                request.safeHistory()
         ));
     }
 }

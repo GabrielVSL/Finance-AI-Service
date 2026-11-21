@@ -2,6 +2,7 @@ package br.com.devlopes.smartbudget.service;
 
 import br.com.devlopes.smartbudget.dto.AiProviderInfo;
 import br.com.devlopes.smartbudget.dto.AssistantResponse;
+import br.com.devlopes.smartbudget.dto.ChatRequest;
 import br.com.devlopes.smartbudget.exception.InvalidTransactionException;
 import br.com.devlopes.smartbudget.model.AiProvider;
 import org.slf4j.Logger;
@@ -32,6 +33,15 @@ public class AssistantService {
     private static final int MAX_MESSAGE_LENGTH = 1000;
 
     public AssistantResponse processTextCommand(String message, boolean generateAudio, String requestedProvider) {
+        return processTextCommand(message, generateAudio, requestedProvider, List.of());
+    }
+
+    public AssistantResponse processTextCommand(
+            String message,
+            boolean generateAudio,
+            String requestedProvider,
+            List<ChatRequest.ChatHistoryEntry> history
+    ) {
         if (message == null || message.isBlank()) {
             throw new InvalidTransactionException("O comando de texto não pode ser vazio.");
         }
@@ -40,7 +50,7 @@ public class AssistantService {
             throw new InvalidTransactionException("O comando de texto deve ter no máximo 1000 caracteres.");
         }
         AiProvider provider = AiProvider.fromStringOrNull(requestedProvider);
-        AiProviderRouter.ExecutionResult result = aiProviderRouter.execute(trimmed, provider);
+        AiProviderRouter.ExecutionResult result = aiProviderRouter.execute(trimmed, provider, history);
         String audioBase64 = generateAudio ? encodeAudioResponse(result.reply()) : null;
         return AssistantResponse.ofText(result.reply(), audioBase64, result.providerUsed().getId());
     }
