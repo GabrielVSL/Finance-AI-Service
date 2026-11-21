@@ -7,8 +7,8 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 public enum AiProvider {
-    GROQ("groq", "Groq (Llama 3.3 70B)"),
-    GEMINI("gemini", "Google Gemini (2.5 Flash)");
+    GROQ("groq", "Groq (GPT-OSS 120B)"),
+    GEMINI("gemini", "Google Gemini (3.8 Flash)");
 
     private final String id;
     private final String label;

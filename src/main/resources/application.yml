@@ -35,7 +35,7 @@ spring:
       api-key: ${AI_API_KEY:${OPENAI_API_KEY:demo-key}}
       chat:
         options:
-          model: ${AI_CHAT_MODEL:llama-3.3-70b-versatile}
+          model: ${AI_CHAT_MODEL:openai/gpt-oss-120b}
           temperature: 0.2
       audio:
         transcription:
@@ -74,7 +74,7 @@ app:
       base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
       completions-path: /chat/completions
       api-key: ${GEMINI_API_KEY:demo-key}
-      model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
+      model: ${GEMINI_CHAT_MODEL:gemini-3.8-flash}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   security:
