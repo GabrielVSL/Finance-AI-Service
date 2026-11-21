@@ -12,7 +12,7 @@
 
 <br />
 
-<img src="./docs/portal-hero.png" alt="Portal Unificado integrando o Finance-AI-Service" width="100%" />
+<img src="./docs/budget-preview.png" alt="Painel de Finanças e Consultor IA consumindo o Finance-AI-Service" width="100%" />
 
 </div>
 
@@ -74,31 +74,12 @@
 
 ---
 
-## Como Executar Localmente e em Produção
+## Infraestrutura & Deploy
 
-### Localmente (H2 em memória — funciona até sem chave de IA nos testes)
-```bash
-git clone https://github.com/GabrielVSL/Finance-AI-Service.git
-cd Finance-AI-Service
-
-# Rodar os 36 testes 100% offline (sem API key nem banco externo)
-mvn test
-
-# Subir na porta 8080 com chave grátis do Groq (Chat + Voz) e/ou Gemini (Fallback)
-# PowerShell:
-$env:AI_API_KEY="gsk_sua_chave_groq"
-$env:GEMINI_API_KEY="sua_chave_gemini_opcional"
-mvn spring-boot:run
-```
-
-> Para habilitar Swagger ou H2 Console **somente em desenvolvimento local**, defina `SWAGGER_ENABLED=true` / `H2_CONSOLE_ENABLED=true`.
-
-### Produção (Docker no Render + Neon PostgreSQL)
-Configure as variáveis descritas em [`.env.example`](.env.example) no Render (`Runtime: Docker`, `Health Check Path: /health`):
-- `SPRING_DATASOURCE_URL=jdbc:postgresql://<host-neon>/smartbudgetdb?sslmode=require`
-- `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`
-- `AI_API_KEY` (Groq) e opcionalmente `GEMINI_API_KEY` (Google AI Studio)
-- `INTERNAL_API_KEY` *(mesmo valor configurado no BFF)* e `TRUST_PROXY_HEADERS=true`
+- **Runtime:** container **Docker** multi-stage (`eclipse-temurin:21-jre-alpine`), usuário não-root (`appuser`) e JVM afinada (`-XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC`) no **Render**.
+- **Banco de Dados:** **Neon PostgreSQL** (`smartbudgetdb` com SSL obrigatório e pool HikariCP configurado para *scale-to-zero*), mantendo H2 em memória isolado para a suíte de testes offline.
+- **Provedores de IA:** **Groq LPU** (`openai/gpt-oss-120b` + `whisper-large-v3-turbo`) como primário e **Google Gemini** (`gemini-3.8-flash`) em fallback automático.
+- **Segurança de borda:** autenticado via `X-Internal-Api-Key` a partir do BFF ([ItauBootcamp](https://github.com/GabrielVSL/ItauBootcamp)), CORS fechado por padrão, `H2_CONSOLE_ENABLED=false`, `SWAGGER_ENABLED=false` e `GET /health` dedicado.
 
 ---
 
