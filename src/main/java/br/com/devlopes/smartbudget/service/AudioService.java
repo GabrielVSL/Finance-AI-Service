@@ -30,9 +30,15 @@ public class AudioService {
 
     private static final Logger log = LoggerFactory.getLogger(AudioService.class);
 
-    private static final String FALLBACK_FILENAME = "audio.mp3";
+    private static final String FALLBACK_EXTENSION = "mp3";
+    private static final long MAX_AUDIO_BYTES = 5L * 1024L * 1024L;
     private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(
             "mp3", "mp4", "mpeg", "mpga", "m4a", "wav", "webm", "ogg", "oga", "flac"
+    );
+    private static final Set<String> SUPPORTED_CONTENT_TYPES = Set.of(
+            "audio/mpeg", "audio/mp3", "audio/mp4", "audio/m4a", "audio/x-m4a",
+            "audio/wav", "audio/x-wav", "audio/webm", "audio/ogg", "audio/flac",
+            "audio/x-flac", "video/webm", "application/octet-stream"
     );
 
     private final OpenAiAudioTranscriptionModel transcriptionModel;
@@ -56,10 +62,10 @@ public class AudioService {
     }
 
     public String transcribeAudio(MultipartFile audioFile) {
-        validateAudioFile(audioFile);
+        String safeExtension = validateAudioFile(audioFile);
 
         try {
-            Resource audioResource = resolveAudioResource(audioFile);
+            Resource audioResource = resolveAudioResource(audioFile, safeExtension);
 
             OpenAiAudioTranscriptionOptions options = OpenAiAudioTranscriptionOptions.builder()
                     .model(whisperModel)
@@ -82,7 +88,8 @@ public class AudioService {
         } catch (AudioProcessingException | NonTransientAiException | TransientAiException | RestClientException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new AudioProcessingException("Falha ao processar o arquivo de áudio: " + ex.getMessage(), ex);
+            log.error("Falha interna ao processar arquivo de áudio: {}", ex.getMessage(), ex);
+            throw new AudioProcessingException("Falha ao processar o arquivo de áudio enviado.", ex);
         }
     }
 
@@ -113,37 +120,62 @@ public class AudioService {
         } catch (AudioProcessingException | NonTransientAiException | TransientAiException | RestClientException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new AudioProcessingException("Falha ao gerar áudio da resposta: " + ex.getMessage(), ex);
+            log.error("Falha interna ao sintetizar resposta em áudio: {}", ex.getMessage(), ex);
+            throw new AudioProcessingException("Falha ao gerar áudio da resposta.", ex);
         }
     }
 
-    private void validateAudioFile(MultipartFile audioFile) {
+    private String validateAudioFile(MultipartFile audioFile) {
         if (audioFile == null || audioFile.isEmpty()) {
             throw new AudioProcessingException("O arquivo de áudio é obrigatório e não pode estar vazio.");
         }
 
-        String filename = audioFile.getOriginalFilename();
-        if (filename != null && !filename.isBlank() && filename.contains(".")) {
-            String extension = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
-            if (!SUPPORTED_EXTENSIONS.contains(extension)) {
+        if (audioFile.getSize() > MAX_AUDIO_BYTES) {
+            throw new AudioProcessingException("O arquivo de áudio excede o limite máximo de 5 MB.");
+        }
+
+        String contentType = audioFile.getContentType();
+        if (contentType != null && !contentType.isBlank()) {
+            String baseMime = contentType.split(";")[0].trim().toLowerCase(Locale.ROOT);
+            if (!SUPPORTED_CONTENT_TYPES.contains(baseMime)) {
                 throw new AudioProcessingException(
-                        "Formato de arquivo não suportado: '." + extension
-                                + "'. Formatos aceitos: " + String.join(", ", SUPPORTED_EXTENSIONS) + ".");
+                        "Formato de arquivo não suportado (MIME inválido). Envie MP3, WAV, M4A, WEBM, OGG ou FLAC.");
             }
         }
+
+        String filename = audioFile.getOriginalFilename();
+        if (filename == null || filename.isBlank()) {
+            return FALLBACK_EXTENSION;
+        }
+
+        int lastDot = filename.lastIndexOf('.');
+        if (lastDot < 0 || lastDot == filename.length() - 1) {
+            throw new AudioProcessingException(
+                    "Formato de arquivo não suportado: extensão ausente. Formatos aceitos: "
+                            + String.join(", ", SUPPORTED_EXTENSIONS) + ".");
+        }
+
+        String extension = filename.substring(lastDot + 1).toLowerCase(Locale.ROOT);
+        if (!SUPPORTED_EXTENSIONS.contains(extension)) {
+            String safeExt = extension.replaceAll("[^a-z0-9]", "");
+            if (safeExt.length() > 12) {
+                safeExt = safeExt.substring(0, 12);
+            }
+            throw new AudioProcessingException(
+                    "Formato de arquivo não suportado: '." + safeExt
+                            + "'. Formatos aceitos: " + String.join(", ", SUPPORTED_EXTENSIONS) + ".");
+        }
+        return extension;
     }
 
-    private Resource resolveAudioResource(MultipartFile audioFile) throws IOException {
-        String filename = audioFile.getOriginalFilename();
-        if (filename != null && !filename.isBlank()) {
-            return audioFile.getResource();
-        }
-        // O endpoint Whisper da OpenAI exige um nome de arquivo com extensão suportada no multipart.
+    private Resource resolveAudioResource(MultipartFile audioFile, String safeExtension) throws IOException {
+        // Nunca repassa originalFilename do usuário ao provedor externo (previne path traversal / header injection).
+        String safeFilename = "audio." + safeExtension;
         byte[] bytes = audioFile.getBytes();
         return new ByteArrayResource(bytes) {
             @Override
             public String getFilename() {
-                return FALLBACK_FILENAME;
+                return safeFilename;
             }
         };
     }

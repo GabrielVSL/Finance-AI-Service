@@ -21,8 +21,8 @@ public class OpenApiConfig {
                                 Spring Boot 3 e Spring AI (ChatClient, Tool Calling, Speech-to-Text e Text-to-Speech).
                                 """)
                         .contact(new Contact()
-                                .name("DevLopes")
-                                .url("https://github.com/Frederico-Lopes/Smart-Budget-Spring-AI"))
+                                .name("GabrielVSL")
+                                .url("https://github.com/GabrielVSL/finance-ai-service"))
                         .license(new License()
                                 .name("MIT License")
                                 .url("https://opensource.org/licenses/MIT")));

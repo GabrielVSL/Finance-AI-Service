@@ -27,12 +27,14 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.util.List;
 
+import static org.hamcrest.Matchers.empty;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -46,6 +48,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@TestPropertySource(properties = {
+        "springdoc.api-docs.enabled=true",
+        "app.cors.allowed-origins=https://meu-front-unificado.vercel.app",
+        "app.security.rate-limit.enabled=false"
+})
 class SmartBudgetApiIntegrationTest {
 
     @Autowired
@@ -156,21 +163,31 @@ class SmartBudgetApiIntegrationTest {
     }
 
     @Test
-    @DisplayName("GET / deve encaminhar para o painel web interativo e rota inexistente deve retornar 404")
-    void shouldServeWebUiAndReturn404ForUnknownRoute() throws Exception {
+    @DisplayName("GET / e rota inexistente devem retornar 404 sem servir HTML legado e com headers de segurança")
+    void shouldReturn404ForRootAndUnknownRouteWithoutLegacyHtml() throws Exception {
         mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl("index.html"));
+                .andExpect(status().isNotFound())
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("X-Frame-Options", "DENY"))
+                .andExpect(jsonPath("$.status").value(404));
 
         mockMvc.perform(get("/index.html"))
-                .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("Smart Budget AI")));
+                .andExpect(status().isNotFound());
 
         mockMvc.perform(get("/api/v1/rota-inexistente"))
                 .andExpect(status().isNotFound())
+                .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("/swagger-ui.html")));
+                .andExpect(jsonPath("$.message").value("Rota não encontrada."));
+    }
+
+    @Test
+    @DisplayName("CORS deve bloquear origem não autorizada explicitamente")
+    void shouldBlockUnconfiguredCorsOrigin() throws Exception {
+        mockMvc.perform(options("/api/v1/transactions")
+                        .header("Origin", "https://site-malicioso.example")
+                        .header("Access-Control-Request-Method", "POST"))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -360,7 +377,7 @@ class SmartBudgetApiIntegrationTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/assistant/chat deve retornar 502 Bad Gateway quando o provedor OpenAI falhar")
+    @DisplayName("POST /api/v1/assistant/chat deve retornar 502 Bad Gateway sem vazar detalhes internos do provedor")
     void shouldReturnBadGatewayWhenOpenAiFails() throws Exception {
         when(chatModel.call(any(Prompt.class)))
                 .thenThrow(new NonTransientAiException("401 - Incorrect API key provided: demo-key"));
@@ -376,6 +393,36 @@ class SmartBudgetApiIntegrationTest {
                         .content(payload))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.status").value(502))
-                .andExpect(jsonPath("$.error").value("Erro no Provedor de IA"));
+                .andExpect(jsonPath("$.error").value("Erro no Provedor de IA"))
+                .andExpect(jsonPath("$.details", empty()));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/assistant/chat deve rejeitar mensagem acima de 1000 caracteres")
+    void shouldRejectOversizedChatMessage() throws Exception {
+        String hugeMessage = "a".repeat(1001);
+        String payload = "{\"message\": \"" + hugeMessage + "\"}";
+
+        mockMvc.perform(post("/api/v1/assistant/chat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/assistant/voice deve rejeitar arquivo sem extensão")
+    void shouldRejectAudioFileWithoutExtension() throws Exception {
+        MockMultipartFile noExtFile = new MockMultipartFile(
+                "audio",
+                "arquivo-sem-extensao",
+                "audio/mpeg",
+                "dados".getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/v1/assistant/voice").file(noExtFile))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Erro no Processamento de Áudio"));
     }
 }

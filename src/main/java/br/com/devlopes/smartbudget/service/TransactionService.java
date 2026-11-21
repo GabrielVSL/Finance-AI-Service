@@ -4,6 +4,7 @@ import br.com.devlopes.smartbudget.config.SessionContext;
 import br.com.devlopes.smartbudget.dto.FinancialSummaryResponse;
 import br.com.devlopes.smartbudget.dto.TransactionRequest;
 import br.com.devlopes.smartbudget.dto.TransactionResponse;
+import br.com.devlopes.smartbudget.exception.InvalidTransactionException;
 import br.com.devlopes.smartbudget.model.Transaction;
 import br.com.devlopes.smartbudget.model.TransactionCategory;
 import br.com.devlopes.smartbudget.model.TransactionType;
@@ -11,6 +12,7 @@ import br.com.devlopes.smartbudget.repository.TransactionRepository;
 import br.com.devlopes.smartbudget.repository.TypeAggregate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -25,16 +27,29 @@ import java.util.List;
 public class TransactionService {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionService.class);
+    private static final long DEFAULT_MAX_PER_SESSION = 200L;
+    private static final long DEFAULT_MAX_TOTAL = 5000L;
 
     private final TransactionRepository transactionRepository;
     private final long retentionHours;
+    private final long maxTransactionsPerSession;
+    private final long maxTotalTransactions;
 
+    @Autowired
     public TransactionService(
             TransactionRepository transactionRepository,
-            @Value("${app.session.retention-hours:24}") long retentionHours
+            @Value("${app.session.retention-hours:24}") long retentionHours,
+            @Value("${app.session.max-transactions-per-session:200}") long maxTransactionsPerSession,
+            @Value("${app.session.max-total-transactions:5000}") long maxTotalTransactions
     ) {
         this.transactionRepository = transactionRepository;
         this.retentionHours = retentionHours;
+        this.maxTransactionsPerSession = Math.max(1L, maxTransactionsPerSession);
+        this.maxTotalTransactions = Math.max(1L, maxTotalTransactions);
+    }
+
+    TransactionService(TransactionRepository transactionRepository, long retentionHours) {
+        this(transactionRepository, retentionHours, DEFAULT_MAX_PER_SESSION, DEFAULT_MAX_TOTAL);
     }
 
     @Transactional
@@ -56,6 +71,14 @@ public class TransactionService {
     ) {
         String sessionId = SessionContext.getCurrentSessionId();
         Transaction transaction = new Transaction(sessionId, description, amount, type, category);
+        if (transactionRepository.countBySessionId(sessionId) >= maxTransactionsPerSession) {
+            throw new InvalidTransactionException(
+                    "Limite máximo de " + maxTransactionsPerSession + " transações por sessão atingido.");
+        }
+        if (transactionRepository.count() >= maxTotalTransactions) {
+            throw new InvalidTransactionException(
+                    "Capacidade temporária de armazenamento atingida. Tente novamente mais tarde.");
+        }
         Transaction saved = transactionRepository.save(transaction);
         return TransactionResponse.from(saved);
     }

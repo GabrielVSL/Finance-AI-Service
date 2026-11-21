@@ -31,8 +31,12 @@ public enum TransactionType {
         try {
             return TransactionType.valueOf(normalized);
         } catch (IllegalArgumentException ex) {
+            String safeValue = value.trim().replaceAll("[\\r\\n\\t]", " ");
+            if (safeValue.length() > 32) {
+                safeValue = safeValue.substring(0, 32) + "...";
+            }
             throw new InvalidTransactionException(
-                    "Tipo de transação inválido: '" + value + "'. Valores aceitos: INCOME, EXPENSE.");
+                    "Tipo de transação inválido: '" + safeValue + "'. Valores aceitos: INCOME, EXPENSE.");
         }
     }
 }

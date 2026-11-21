@@ -41,8 +41,12 @@ public enum AiProvider {
             String allowed = Arrays.stream(values())
                     .map(AiProvider::getId)
                     .collect(Collectors.joining(", "));
+            String safeInput = rawProvider.trim().replaceAll("[\\r\\n\\t]", " ");
+            if (safeInput.length() > 32) {
+                safeInput = safeInput.substring(0, 32) + "...";
+            }
             throw new InvalidAiProviderException(
-                    "Provedor de IA inválido: '" + rawProvider + "'. Opções aceitas: " + allowed + ".");
+                    "Provedor de IA inválido: '" + safeInput + "'. Opções aceitas: " + allowed + ".");
         }
     }
 }

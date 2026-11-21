@@ -55,7 +55,7 @@ public class GlobalExceptionHandler {
         ApiErrorResponse error = new ApiErrorResponse(
                 HttpStatus.UNPROCESSABLE_ENTITY.value(),
                 "Erro ao Executar Ferramenta Financeira",
-                ex.getMessage(),
+                "Não foi possível concluir a operação financeira solicitada.",
                 request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(error);
@@ -100,9 +100,8 @@ public class GlobalExceptionHandler {
         ApiErrorResponse error = new ApiErrorResponse(
                 HttpStatus.BAD_GATEWAY.value(),
                 "Erro no Provedor de IA",
-                "Não foi possível se comunicar com o provedor de IA. Verifique AI_API_KEY (Groq) ou GEMINI_API_KEY e tente novamente.",
-                request.getRequestURI(),
-                safeDetails(ex.getMessage())
+                "Não foi possível se comunicar com o provedor de IA no momento. Tente novamente em instantes.",
+                request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(error);
     }
@@ -148,22 +147,36 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleMaxUploadSizeExceeded(
+            MaxUploadSizeExceededException ex,
+            HttpServletRequest request
+    ) {
+        log.warn("Upload acima do limite em {}: {}", request.getRequestURI(), ex.getMessage());
+        ApiErrorResponse error = new ApiErrorResponse(
+                HttpStatus.PAYLOAD_TOO_LARGE.value(),
+                "Arquivo Muito Grande",
+                "O arquivo enviado excede o tamanho máximo permitido (5 MB).",
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(error);
+    }
+
     @ExceptionHandler({
             HttpMessageNotReadableException.class,
             MethodArgumentTypeMismatchException.class,
-            MissingServletRequestPartException.class,
-            MaxUploadSizeExceededException.class
+            MissingServletRequestPartException.class
     })
     public ResponseEntity<ApiErrorResponse> handleBadRequestPayload(
             Exception ex,
             HttpServletRequest request
     ) {
+        log.warn("Payload inválido em {}: {}", request.getRequestURI(), ex.getMessage());
         ApiErrorResponse error = new ApiErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "Requisição Inválida",
-                "Formato de entrada inválido, arquivo acima do limite ou parâmetro obrigatório ausente.",
-                request.getRequestURI(),
-                safeDetails(ex.getMessage())
+                "Formato de entrada inválido ou parâmetro obrigatório ausente.",
+                request.getRequestURI()
         );
         return ResponseEntity.badRequest().body(error);
     }
@@ -176,7 +189,7 @@ public class GlobalExceptionHandler {
         ApiErrorResponse error = new ApiErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
                 "Recurso Não Encontrado",
-                "Rota não encontrada. Acesse / para o painel web ou /swagger-ui.html para a documentação da API.",
+                "Rota não encontrada.",
                 request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
@@ -190,7 +203,7 @@ public class GlobalExceptionHandler {
         ApiErrorResponse error = new ApiErrorResponse(
                 HttpStatus.METHOD_NOT_ALLOWED.value(),
                 "Método HTTP Não Suportado",
-                ex.getMessage(),
+                "Método HTTP não permitido para este endpoint.",
                 request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(error);
@@ -209,9 +222,5 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-    }
-
-    private List<String> safeDetails(String message) {
-        return message != null && !message.isBlank() ? List.of(message) : List.of();
     }
 }

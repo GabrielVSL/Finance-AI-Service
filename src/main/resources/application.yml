@@ -3,14 +3,19 @@ spring:
     name: smart-budget-ai
 
   datasource:
-    url: jdbc:h2:mem:smartbudgetdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:smartbudgetdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:5}
+      minimum-idle: 0
+      idle-timeout: 30000
+      max-lifetime: 240000
+      connection-timeout: 20000
 
   h2:
     console:
-      enabled: true
+      enabled: ${H2_CONSOLE_ENABLED:false}
       path: /h2-console
 
   jpa:
@@ -21,8 +26,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      max-file-size: 5MB
+      max-request-size: 6MB
 
   ai:
     openai:
@@ -43,24 +48,46 @@ spring:
             voice: alloy
 
 springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
   swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
     path: /swagger-ui.html
     operations-sorter: method
 
 server:
   port: ${PORT:8080}
+  max-http-request-header-size: 8KB
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
 
 app:
   ai:
     default-provider: ${AI_DEFAULT_PROVIDER:groq}
     fallback-enabled: ${AI_FALLBACK_ENABLED:true}
+    http-connect-timeout-seconds: ${AI_CONNECT_TIMEOUT_SEC:10}
+    http-read-timeout-seconds: ${AI_READ_TIMEOUT_SEC:30}
     gemini:
       base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
       completions-path: /chat/completions
       api-key: ${GEMINI_API_KEY:demo-key}
       model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  security:
+    internal-api-key: ${INTERNAL_API_KEY:}
+    max-json-body-bytes: ${MAX_JSON_BODY_BYTES:65536}
+    trust-proxy-headers: ${TRUST_PROXY_HEADERS:false}
+    rate-limit:
+      enabled: ${RATE_LIMIT_ENABLED:true}
+      ai-requests-per-minute: ${RATE_LIMIT_AI_RPM:15}
+      write-requests-per-minute: ${RATE_LIMIT_WRITE_RPM:40}
+      read-requests-per-minute: ${RATE_LIMIT_READ_RPM:120}
   session:
     retention-hours: ${SESSION_RETENTION_HOURS:24}
     cleanup-interval-ms: ${SESSION_CLEANUP_INTERVAL_MS:3600000}
+    max-transactions-per-session: ${MAX_TRANSACTIONS_PER_SESSION:200}
+    max-total-transactions: ${MAX_TOTAL_TRANSACTIONS:5000}

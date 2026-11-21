@@ -29,12 +29,18 @@ public class AssistantService {
         return aiProviderRouter.listProviders();
     }
 
+    private static final int MAX_MESSAGE_LENGTH = 1000;
+
     public AssistantResponse processTextCommand(String message, boolean generateAudio, String requestedProvider) {
         if (message == null || message.isBlank()) {
             throw new InvalidTransactionException("O comando de texto não pode ser vazio.");
         }
+        String trimmed = message.trim();
+        if (trimmed.length() > MAX_MESSAGE_LENGTH) {
+            throw new InvalidTransactionException("O comando de texto deve ter no máximo 1000 caracteres.");
+        }
         AiProvider provider = AiProvider.fromStringOrNull(requestedProvider);
-        AiProviderRouter.ExecutionResult result = aiProviderRouter.execute(message.trim(), provider);
+        AiProviderRouter.ExecutionResult result = aiProviderRouter.execute(trimmed, provider);
         String audioBase64 = generateAudio ? encodeAudioResponse(result.reply()) : null;
         return AssistantResponse.ofText(result.reply(), audioBase64, result.providerUsed().getId());
     }

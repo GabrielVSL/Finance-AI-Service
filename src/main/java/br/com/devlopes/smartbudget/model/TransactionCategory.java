@@ -50,8 +50,12 @@ public enum TransactionCategory {
             String allowed = Arrays.stream(values())
                     .map(Enum::name)
                     .collect(Collectors.joining(", "));
+            String safeValue = value.trim().replaceAll("[\\r\\n\\t]", " ");
+            if (safeValue.length() > 32) {
+                safeValue = safeValue.substring(0, 32) + "...";
+            }
             throw new InvalidTransactionException(
-                    "Categoria inválida: '" + value + "'. Valores aceitos: " + allowed + ".");
+                    "Categoria inválida: '" + safeValue + "'. Valores aceitos: " + allowed + ".");
         }
     }
 }

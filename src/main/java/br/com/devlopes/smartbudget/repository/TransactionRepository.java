@@ -42,6 +42,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             """)
     List<TypeAggregate> summarizeByTypeAndSessionId(@Param("sessionId") String sessionId);
 
+    long countBySessionId(String sessionId);
+
     long deleteBySessionId(String sessionId);
 
     long deleteByCreatedAtBefore(LocalDateTime cutoff);

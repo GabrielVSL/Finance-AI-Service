@@ -12,27 +12,29 @@ public class CorsConfig implements WebMvcConfigurer {
 
     private final String[] allowedOriginPatterns;
 
-    public CorsConfig(@Value("${app.cors.allowed-origins:*}") String allowedOrigins) {
+    public CorsConfig(@Value("${app.cors.allowed-origins:}") String allowedOrigins) {
         this.allowedOriginPatterns = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
-                .filter(origin -> !origin.isBlank())
+                .filter(origin -> !origin.isBlank() && !"*".equals(origin))
                 .toArray(String[]::new);
     }
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        String[] patterns = allowedOriginPatterns.length > 0 ? allowedOriginPatterns : new String[]{"*"};
+        if (allowedOriginPatterns.length == 0) {
+            return;
+        }
         registry.addMapping("/api/**")
-                .allowedOriginPatterns(patterns)
+                .allowedOriginPatterns(allowedOriginPatterns)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
+                .allowedHeaders("Content-Type", "Accept", SessionContextFilter.SESSION_HEADER, ApiSecurityFilter.API_KEY_HEADER)
                 .exposedHeaders(SessionContextFilter.SESSION_HEADER)
                 .maxAge(3600);
 
         registry.addMapping("/health")
-                .allowedOriginPatterns(patterns)
+                .allowedOriginPatterns(allowedOriginPatterns)
                 .allowedMethods("GET", "OPTIONS")
-                .allowedHeaders("*")
+                .allowedHeaders("Accept")
                 .maxAge(3600);
     }
 }

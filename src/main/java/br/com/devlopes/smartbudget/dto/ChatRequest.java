@@ -2,6 +2,7 @@ package br.com.devlopes.smartbudget.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public record ChatRequest(
         @Schema(
@@ -9,6 +10,7 @@ public record ChatRequest(
                 example = "Gastei R$ 85,50 no almoço hoje na categoria FOOD"
         )
         @NotBlank(message = "A mensagem não pode estar vazia.")
+        @Size(max = 1000, message = "A mensagem deve ter no máximo 1000 caracteres.")
         String message,
 
         @Schema(
@@ -23,6 +25,7 @@ public record ChatRequest(
                 example = "groq",
                 allowableValues = {"groq", "gemini"}
         )
+        @Size(max = 32, message = "Nome do provedor de IA excede o tamanho permitido.")
         String provider
 ) {
     public boolean shouldGenerateAudio() {

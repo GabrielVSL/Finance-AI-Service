@@ -144,10 +144,10 @@ mvn spring-boot:run
 mvn spring-boot:run
 ```
 
-### 3. Acessar Interface Web, Swagger UI e Console H2
-- **Painel Web Interativo:** http://localhost:8080/ *(dashboard financeiro, cadastro manual, chat e gravação de voz pelo microfone)*
-- **Swagger UI:** http://localhost:8080/swagger-ui.html
-- **Console H2:** http://localhost:8080/h2-console (JDBC URL: `jdbc:h2:mem:smartbudgetdb`, User: `sa`, Password vazio)
+### 3. Endpoints e Ferramentas de Desenvolvimento
+- **Health Check:** http://localhost:8080/health
+- **Swagger UI (opcional — defina `SWAGGER_ENABLED=true` em dev):** http://localhost:8080/swagger-ui.html
+- **Console H2 (desabilitado por padrão em produção — defina `H2_CONSOLE_ENABLED=true` apenas localmente):** http://localhost:8080/h2-console (JDBC URL: `jdbc:h2:mem:smartbudgetdb`, User: `sa`, Password vazio)
 
 ---
 

@@ -58,7 +58,8 @@ public class FinancialTools {
         TransactionType parsedType = isProvided(type)
                 ? TransactionType.fromString(type)
                 : null;
-        return transactionService.findTransactions(parsedCategory, parsedType);
+        List<TransactionResponse> results = transactionService.findTransactions(parsedCategory, parsedType);
+        return results.size() > 50 ? results.subList(0, 50) : results;
     }
 
     @Tool(description = """

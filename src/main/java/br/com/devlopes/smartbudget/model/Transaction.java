@@ -75,6 +75,9 @@ public class Transaction {
         this.createdAt = LocalDateTime.now();
     }
 
+    public static final int MAX_DESCRIPTION_LENGTH = 255;
+    public static final BigDecimal MAX_AMOUNT = new BigDecimal("10000000.00");
+
     public static void validate(
             String description,
             BigDecimal amount,
@@ -84,8 +87,15 @@ public class Transaction {
         if (description == null || description.isBlank()) {
             throw new InvalidTransactionException("A descrição da transação não pode ser vazia.");
         }
+        if (description.trim().length() > MAX_DESCRIPTION_LENGTH) {
+            throw new InvalidTransactionException(
+                    "A descrição da transação deve ter no máximo " + MAX_DESCRIPTION_LENGTH + " caracteres.");
+        }
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new InvalidTransactionException("O valor da transação deve ser maior que zero.");
+        }
+        if (amount.compareTo(MAX_AMOUNT) > 0) {
+            throw new InvalidTransactionException("O valor máximo permitido por transação é R$ 10.000.000,00.");
         }
         if (type == null) {
             throw new InvalidTransactionException("O tipo da transação (INCOME ou EXPENSE) é obrigatório.");

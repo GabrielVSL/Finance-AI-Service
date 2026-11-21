@@ -67,10 +67,17 @@
             </exclusions>
         </dependency>
 
-        <!-- H2 Database -->
+        <!-- H2 Database (dev/testes locais) -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- PostgreSQL Driver (produção / Neon) -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 

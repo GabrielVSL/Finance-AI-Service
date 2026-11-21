@@ -29,6 +29,14 @@ release.properties
 *.tar.gz
 *.rar
 
+# Local Config & Secrets
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.properties
+*.local.properties
+
 # Virtual machine crash logs
 hs_err_pid*
 replay_pid*
