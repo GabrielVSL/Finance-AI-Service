@@ -1,200 +1,111 @@
-# Smart Budget Spring AI
+<div align="center">
 
-API de **Orçamento e Finanças Pessoais Inteligente** desenvolvida com **Java 21**, **Spring Boot 3.4** e **Spring AI 1.0**, capaz de interpretar comandos em **voz e texto natural**, executar funções Java diretamente no banco de dados via **Tool Calling (Function Calling)** e responder como um Consultor Financeiro Pessoal.
+# Finance-AI-Service — Consultor Financeiro Multimodal com Spring AI
 
-> Projeto desenvolvido como desafio final da trilha de Spring Boot da **DIO**, evoluído com boas práticas de arquitetura, validações de domínio, tratamento global de erros e suíte completa de testes automatizados.
+**Microsserviço Java 21 / Spring Boot 3.4 + Spring AI 1.0 capaz de interpretar comandos de voz (Whisper STT) e texto com memória de conversa, acionar ferramentas Java diretamente no PostgreSQL via Tool Calling e rotear entre Groq e Google Gemini com fallback automático.**
 
----
+[![Java 21](https://img.shields.io/badge/Java-21_LTS-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Spring Boot 3.4](https://img.shields.io/badge/Spring_Boot-3.4.5-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Spring AI 1.0](https://img.shields.io/badge/Spring_AI-1.0.0-0EA5E9?style=for-the-badge&logo=spring&logoColor=white)](https://spring.io/projects/spring-ai)
+[![PostgreSQL](https://img.shields.io/badge/Neon-PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech/)
+[![Tests](https://img.shields.io/badge/Tests-36_Passing-10B981?style=for-the-badge)](#testes-automatizados)
 
-## O que o projeto faz e Arquitetura do Fluxo
+<br />
 
-O usuário interage com a API enviando **um áudio** (ex.: *"Gastei 85 reais no almoço hoje"* ou *"Como está meu saldo?"*) ou **uma mensagem de texto**. O Spring AI transcreve o áudio quando necessário, interpreta a intenção por meio de um System Prompt especializado e aciona automaticamente ferramentas Java (`FinancialTools`) conectadas ao banco em memória **H2**.
+<img src="./docs/portal-hero.png" alt="Portal Unificado integrando o Finance-AI-Service" width="100%" />
 
-```mermaid
-flowchart LR
-    U["Cliente (Swagger / cURL / App)"] -->|"POST /api/v1/assistant/voice (Multipart)"| AC["AssistantController"]
-    U -->|"POST /api/v1/assistant/chat (JSON)"| AC
-    AC -->|"Áudio"| AS["AudioService (Whisper STT)"]
-    AS -->|"Texto transcrito"| ASS["AssistantService (ChatClient)"]
-    AC -->|"Texto direto"| ASS
-    ASS -->|"Tool Calling (@Tool)"| FT["FinancialTools"]
-    FT --> TS["TransactionService (Regras de Domínio)"]
-    TS --> TR["TransactionRepository (Spring Data JPA)"]
-    TR --> H2[("H2 Database")]
-    ASS -->|"Opcional: generateAudio=true"| TTS["AudioService (OpenAI TTS)"]
-    ASS -->|"AssistantResponse (JSON + áudio Base64 opcional)"| U
-```
+</div>
 
-### Fluxo completo passo a passo
-1. **Entrada (Voz ou Texto):** O `AssistantController` recebe um arquivo de áudio em `/api/v1/assistant/voice` ou um JSON em `/api/v1/assistant/chat`.
-2. **Speech-to-Text (STT):** No fluxo de voz, o `AudioService` envia o recurso de áudio para o `OpenAiAudioTranscriptionModel` (`whisper-1`) configurado para português (`pt`).
-3. **Orquestração com `ChatClient` + Tool Calling:** O `AssistantService` envia o comando para o `ChatClient` com um *System Prompt* de Consultor Financeiro Pessoal e as ferramentas do `FinancialTools` registradas:
-   - `registrarTransacao`: valida e persiste receitas (`INCOME`) e despesas (`EXPENSE`).
-   - `listarTransacoesPorCategoria`: filtra lançamentos por categoria e/ou tipo.
-   - `calcularResumoFinanceiro`: consolida receitas, despesas, saldo líquido e dispara alerta caso as despesas superem as receitas.
-4. **Persistência e Auditoria:** O `TransactionService` aplica as regras de domínio e persiste via `TransactionRepository` no H2. Os dados também podem ser auditados diretamente via `GET /api/v1/transactions` e `GET /api/v1/transactions/summary`.
-5. **Resposta (Texto + TTS opcional):** O assistente devolve uma resposta estruturada em português e, se `generateAudio=true`, o `AudioService` gera o áudio MP3 via `OpenAiAudioSpeechModel` (`tts-1`) retornado em Base64.
+> Este microsserviço integra o ecossistema do **Bootcamp Java & IA (Itaú + DIO)**, consumido server-side pelo portal BFF **[ItauBootcamp](https://github.com/GabrielVSL/ItauBootcamp)** em conjunto com o **[CheckoutService](https://github.com/GabrielVSL/CheckoutService)**.
 
 ---
 
-## Evoluções Implementadas Além do Projeto Base
+## Arquitetura do Fluxo Multimodal & Tool Calling
 
-| Evolução | Descrição Técnica |
+<p align="center">
+  <img src="./docs/architecture.svg" alt="Diagrama de Arquitetura do Finance-AI-Service — Whisper STT, AiProviderRouter Groq + Gemini e Spring AI Tool Calling" width="100%" />
+</p>
+
+### Por que escolhi esta arquitetura?
+
+| Decisão Arquitetural | Motivação e Trade-off |
 | :--- | :--- |
-| **Resumo Financeiro via Tool Calling** | Implementação da ferramenta `calcularResumoFinanceiro` em `FinancialTools`, calculando total de receitas, total de despesas, saldo líquido e emitindo `deficitAlert` quando os gastos superam os ganhos. |
-| **Validações de Domínio** | Regras na entidade `Transaction` e no `TransactionService` (além de Bean Validation nos DTOs) impedindo valores menores ou iguais a zero, descrições vazias ou categorias/tipos inválidos, lançando `InvalidTransactionException`. |
-| **Endpoint Híbrido (Texto e Voz)** | Adição do endpoint `POST /api/v1/assistant/chat` para testes imediatos via Swagger UI ou cURL sem necessidade de upload de áudio, além do suporte opcional a resposta falada (`generateAudio=true`). |
-| **Tratamento Global de Erros** | `@RestControllerAdvice` (`GlobalExceptionHandler`) padronizando erros no record `ApiErrorResponse` com semântica HTTP precisa: `400 Bad Request` (validação sintática e formato de áudio), `422 Unprocessable Entity` (regras de negócio / domínio), `502 Bad Gateway` (falha de comunicação/autenticação com a OpenAI) e `500 Internal Server Error`. |
-| **Roteador Multi-Provedor (Groq + Gemini)** | Padrão Strategy/Router (`AiProviderRouter`) permitindo alternar em tempo de execução entre **Groq (Llama 3.3 70B)** e **Google Gemini (2.5 Flash)** via `provider: "groq" | "gemini"`, com descoberta em `GET /api/v1/assistant/providers` e **fallback automático** caso um provedor falhe. |
-| **Isolamento de Sessão & Pronto para Deploy** | Isolamento por visitante via header `X-Session-Id` (`localStorage` no front) + `DELETE /api/v1/transactions`, limpeza automática `@Scheduled` no H2, `CORS` configurável e endpoint leve `GET /health` para keep-alive. |
-| **Configuração Resiliente & Testes Offline** | Fallback `demo-key` no `application.yml` para inicializar a aplicação sem chave real e suíte com `@SpringBootTest` + Mockito testando as Tools, roteamento multi-provedor, isolamento por sessão, `@RestControllerAdvice` e controllers 100% offline. |
+| **Roteador Multi-Provedor com Fallback Automático ([`AiProviderRouter`](src/main/java/br/com/devlopes/smartbudget/service/AiProviderRouter.java))** | Depender de um único provedor pago (OpenAI) cria ponto único de falha e custo. O serviço utiliza a especificação OpenAI-compatível do Spring AI para rodar **Groq LPU** (`openai/gpt-oss-120b` + `whisper-large-v3-turbo` para voz) como primário e **Google Gemini** (`gemini-3.8-flash`) como fallback automático em caso de `429`, erro transiente ou indisponibilidade — tudo 100% gratuito para portfólio. |
+| **Tool Calling Tipado (`@Tool`) em vez de Prompts Frágeis** | Em vez de pedir ao LLM que devolva JSON manual e parsear regex no controller, os métodos de [`FinancialTools`](src/main/java/br/com/devlopes/smartbudget/tools/FinancialTools.java) (`registrarTransacao`, `listarTransacoesPorCategoria`, `calcularResumoFinanceiro`) são expostos com schemas tipados. A IA nunca inventa saldo: ela consulta agregação SQL real no banco antes de responder ou montar planos financeiros. |
+| **Defesa em Profundidade (DTO + Entidade + Prompt)** | Como chamadas podem vir tanto via REST direto quanto via argumentos gerados pelo LLM, as invariantes (valor > 0, teto de R$ 10M, tamanho da descrição, sinônimos PT-BR e teto por sessão) são validadas tanto nos DTOs quanto dentro de [`Transaction.validate()`](src/main/java/br/com/devlopes/smartbudget/model/Transaction.java). |
+| **Memória de Conversa Stateless via Histórico Validado** | Para que o usuário peça *"Quero juntar para uma casa, monte um plano"* e continue refinando valores nas mensagens seguintes sem acoplar sessão de chat em RAM do servidor, [`ChatRequest`](src/main/java/br/com/devlopes/smartbudget/dto/ChatRequest.java) aceita até 10 mensagens de contexto (truncadas a 600 chars) convertidas em `UserMessage`/`AssistantMessage` do Spring AI. |
+| **Banco Híbrido (Neon PostgreSQL em prod · H2 em dev/test)** | Sem variáveis externas, o Spring Boot sobe instantaneamente com H2 em memória para testes 100% offline. Em produção no Render, basta informar `SPRING_DATASOURCE_URL` apontando para `smartbudgetdb` no Neon (SSL + pool HikariCP ajustado para *scale-to-zero*). |
 
 ---
 
-## Tecnologias Utilizadas
+## Desafios Reais Enfrentados e Como Foram Resolvidos
 
-- **Java 21** (Records, Text Blocks, Pattern Matching)
-- **Spring Boot 3.4.5** (Web, Data JPA, Validation)
-- **Spring AI 1.0.0** (`spring-ai-starter-model-openai`, `ChatClient`, `@Tool` / `@ToolParam`, `OpenAiAudioTranscriptionModel`, `OpenAiAudioSpeechModel`)
-- **H2 Database** (Banco relacional em memória + H2 Console)
-- **Springdoc OpenAPI 2.8.6** (Swagger UI)
-- **JUnit 5, Mockito & MockMvc** (Testes unitários e de integração)
-- **Maven** com Spring AI BOM (`spring-ai-bom`)
+1. **Descontinuação de Modelos em Provedores Gratuitos (Groq & Gemini)**
+   - **Problema:** Durante o deploy real em produção, modelos clássicos (`llama-3.3-70b-versatile` no Groq free tier e `gemini-2.5-flash` em contas novas do Google) passaram a retornar `404 model_not_found`.
+   - **Solução:** Como os modelos são externalizados via variáveis (`AI_CHAT_MODEL` e `GEMINI_CHAT_MODEL`), foi possível migrar imediatamente para `openai/gpt-oss-120b` (Groq) e `gemini-3.8-flash` (Gemini) sem reescrever a integração, mantendo `whisper-large-v3-turbo` (`200 OK` em ~114ms) para transcrição de voz.
 
----
+2. **Segurança em Upload de Áudio e Proteção Contra *Denial of Wallet***
+   - **Problema:** Endpoints públicos de IA são alvo frequente de abuso de cota de API, uploads de arquivos falsos sem extensão ou path traversal no `originalFilename` encaminhado ao provedor externo.
+   - **Solução:**
+     - [`ApiSecurityFilter`](src/main/java/br/com/devlopes/smartbudget/config/ApiSecurityFilter.java) exige `X-Internal-Api-Key` (comparação em tempo constante), aplica rate limit específico para IA (`15 req/min`), limita corpo JSON (`64 KB`) e bloqueia CORS aberto por padrão.
+     - [`AudioService`](src/main/java/br/com/devlopes/smartbudget/service/AudioService.java) valida tamanho (`<= 5 MB`), tipo MIME, obriga extensão suportada e **descarta o `originalFilename` do usuário**, encapsulando o binário com nome fixo seguro `audio.<ext>`.
 
-## Estrutura do Projeto
+3. **Vazamento de Erros Internos e Prompt Injection**
+   - **Problema:** Exceções de provedores externos (`NonTransientAiException`) ou Jackson podem conter trechos de chave, URLs internas ou nomes de pacotes Java.
+   - **Solução:** [`GlobalExceptionHandler`](src/main/java/br/com/devlopes/smartbudget/exception/GlobalExceptionHandler.java) grava o detalhe técnico exclusivamente nos logs do servidor e devolve contratos limpos (`400`, `413`, `422`, `502`, `500`). O `SYSTEM_PROMPT` traz guardrails explícitos contra tentativas de vazamento de prompt/chaves ou cadastros em massa, e `listarTransacoesPorCategoria` limita o retorno ao LLM a 50 registros para evitar estouro de contexto.
 
-```text
-src/main/java/br/com/devlopes/smartbudget
-├── config
-│   └── OpenApiConfig.java
-├── controller
-│   ├── AssistantController.java
-│   └── TransactionController.java
-├── dto
-│   ├── ApiErrorResponse.java
-│   ├── AssistantResponse.java
-│   ├── ChatRequest.java
-│   ├── FinancialSummaryResponse.java
-│   ├── TransactionRequest.java
-│   └── TransactionResponse.java
-├── exception
-│   ├── AudioProcessingException.java
-│   ├── GlobalExceptionHandler.java
-│   └── InvalidTransactionException.java
-├── model
-│   ├── Transaction.java
-│   ├── TransactionCategory.java
-│   └── TransactionType.java
-├── repository
-│   ├── TransactionRepository.java
-│   └── TypeAggregate.java
-├── service
-│   ├── AssistantService.java
-│   ├── AudioService.java
-│   └── TransactionService.java
-├── tools
-│   └── FinancialTools.java
-└── SmartBudgetAiApplication.java
-```
+4. **Proteção de Recursos em Ambiente Gratuito (Render 512 MB)**
+   - Limite de `200` transações por sessão e `5.000` globais em [`TransactionService`](src/main/java/br/com/devlopes/smartbudget/service/TransactionService.java), limpeza agendada `@Scheduled` a cada hora (retenção de 24h), console H2 e Swagger desabilitados por padrão (`false`) e [`Dockerfile`](Dockerfile) multi-stage não-root com `-XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC`.
 
 ---
 
-## Como Executar a Aplicação
+## Endpoints da API
 
-### Pré-requisitos
-- **Java 21** instalado
-- **Maven 3.9+** instalado
-- **Chave de IA (Opcional — 100% Gratuitas):**
-  - **Groq (Recomendado — Chat + Tool Calling + Whisper Voz):** gere uma chave grátis em [console.groq.com/keys](https://console.groq.com/keys) (`AI_API_KEY=gsk_...`).
-  - **Google Gemini (Chat + Tool Calling + Fallback automático):** gere uma chave grátis em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (`GEMINI_API_KEY=AIza...`).
-  - *(Sem nenhuma chave, a aplicação sobe normalmente com fallback `demo-key` e toda a suíte de testes passa 100% offline).*
+| Método | Rota | Descrição |
+| :---: | :--- | :--- |
+| `GET` | `/health` | Health check leve para Render/monitoramento (não consulta banco) |
+| `POST` | `/api/v1/assistant/chat` | Envia comando em linguagem natural (aceita `history` e `provider` opcionais) |
+| `POST` | `/api/v1/assistant/voice` | Recebe áudio multipart (`mp3`, `wav`, `m4a`, `webm`, `ogg`, `flac`), transcreve via Whisper e executa o consultor IA |
+| `GET` | `/api/v1/assistant/providers` | Lista provedores suportados (`groq` e `gemini`), modelos ativos e suporte a voz |
+| `GET` | `/api/v1/transactions` | Lista lançamentos da sessão (`X-Session-Id`) com filtros opcionais `category` e `type` |
+| `GET` | `/api/v1/transactions/summary` | Agregação SQL: receitas, despesas, saldo líquido e `deficitAlert` |
+| `POST` | `/api/v1/transactions` | Cadastro manual de receita/despesa |
+| `DELETE` | `/api/v1/transactions` | Limpa apenas as transações pertencentes à sessão atual |
 
-### 1. Executar os testes automatizados (sem API Key)
+---
+
+## Como Executar Localmente e em Produção
+
+### Localmente (H2 em memória — funciona até sem chave de IA nos testes)
 ```bash
+git clone https://github.com/GabrielVSL/Finance-AI-Service.git
+cd Finance-AI-Service
+
+# Rodar os 36 testes 100% offline (sem API key nem banco externo)
 mvn test
-```
 
-### 2. Subir a aplicação localmente
-
-#### Opção A — 100% Gratuito com Groq + Google Gemini (Multi-Provedor + Fallback):
-```powershell
-# Windows PowerShell
-$env:AI_API_KEY="gsk_sua_chave_groq_aqui"
-$env:GEMINI_API_KEY="AIza_sua_chave_gemini_aqui"
-mvn spring-boot:run
-```
-```cmd
-:: Windows CMD
-set AI_API_KEY=gsk_sua_chave_groq_aqui
-set GEMINI_API_KEY=AIza_sua_chave_gemini_aqui
-mvn spring-boot:run
-```
-```bash
-# Linux / macOS
-export AI_API_KEY="gsk_sua_chave_groq_aqui"
-export GEMINI_API_KEY="AIza_sua_chave_gemini_aqui"
-mvn spring-boot:run
-```
-*(Você também pode subir apenas com `AI_API_KEY` ou apenas com `GEMINI_API_KEY` — o roteador seleciona automaticamente o provedor configurado!)*
-
-#### Opção B — Modo Offline / Demonstração (sem chave de API):
-```bash
+# Subir na porta 8080 com chave grátis do Groq (Chat + Voz) e/ou Gemini (Fallback)
+# PowerShell:
+$env:AI_API_KEY="gsk_sua_chave_groq"
+$env:GEMINI_API_KEY="sua_chave_gemini_opcional"
 mvn spring-boot:run
 ```
 
-### 3. Endpoints e Ferramentas de Desenvolvimento
-- **Health Check:** http://localhost:8080/health
-- **Swagger UI (opcional — defina `SWAGGER_ENABLED=true` em dev):** http://localhost:8080/swagger-ui.html
-- **Console H2 (desabilitado por padrão em produção — defina `H2_CONSOLE_ENABLED=true` apenas localmente):** http://localhost:8080/h2-console (JDBC URL: `jdbc:h2:mem:smartbudgetdb`, User: `sa`, Password vazio)
+> Para habilitar Swagger ou H2 Console **somente em desenvolvimento local**, defina `SWAGGER_ENABLED=true` / `H2_CONSOLE_ENABLED=true`.
+
+### Produção (Docker no Render + Neon PostgreSQL)
+Configure as variáveis descritas em [`.env.example`](.env.example) no Render (`Runtime: Docker`, `Health Check Path: /health`):
+- `SPRING_DATASOURCE_URL=jdbc:postgresql://<host-neon>/smartbudgetdb?sslmode=require`
+- `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`
+- `AI_API_KEY` (Groq) e opcionalmente `GEMINI_API_KEY` (Google AI Studio)
+- `INTERNAL_API_KEY` *(mesmo valor configurado no BFF)* e `TRUST_PROXY_HEADERS=true`
 
 ---
 
-## Como Testar o Fluxo Principal (Swagger / cURL)
+## Testes Automatizados
 
-### 1. Comando por Texto (`POST /api/v1/assistant/chat`)
-```bash
-curl -X POST http://localhost:8080/api/v1/assistant/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Recebi meu salário de 5500 reais hoje e gastei 120 reais com almoço",
-    "generateAudio": false
-  }'
-```
-
-### 2. Comando por Voz (`POST /api/v1/assistant/voice`)
-```bash
-curl -X POST "http://localhost:8080/api/v1/assistant/voice?generateAudio=false" \
-  -F "audio=@comando.mp3"
-```
-
-### 3. Auditoria Direta no Banco H2 (`GET /api/v1/transactions` e `/summary`)
-```bash
-# Listar todas as transações (ou filtrar com ?category=FOOD&type=EXPENSE)
-curl http://localhost:8080/api/v1/transactions
-
-# Consultar resumo financeiro consolidado e alerta de déficit
-curl http://localhost:8080/api/v1/transactions/summary
-```
-
-### 4. Testando Validações e `@RestControllerAdvice` (`POST /api/v1/transactions`)
-```bash
-curl -X POST http://localhost:8080/api/v1/transactions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "description": "",
-    "amount": -10,
-    "type": "EXPENSE",
-    "category": "FOOD"
-  }'
-```
-
----
-
-## Aprendizados Técnicos Durante o Desafio
-
-- **Tool Calling declarativo no Spring AI 1.0:** Uso de `@Tool` e `@ToolParam` para expor métodos Java tipados diretamente ao `ChatClient`, permitindo que o modelo decida quando registrar, filtrar ou consolidar dados financeiros sem acoplamento no controller.
-- **Unificação de fluxos multimodais:** Integração entre `OpenAiAudioTranscriptionModel` (STT), `ChatClient` e `OpenAiAudioSpeechModel` (TTS) sob uma arquitetura limpa de serviços.
-- **Defesa em profundidade nas validações:** Combinar Bean Validation na borda REST com invariantes de domínio na entidade/serviço garante que tanto chamadas HTTP diretas quanto parâmetros gerados pela IA sejam validados antes da persistência.
-- **Testabilidade de aplicações com IA generativa:** Uso de `@MockitoBean` sobre `ChatModel`, `OpenAiAudioTranscriptionModel` e `OpenAiAudioSpeechModel` para validar todo o contexto Spring Boot, JPA/H2 e `MockMvc` sem depender de rede ou créditos externos.
+A suíte executa **36 testes 100% offline** (JUnit 5, Mockito, MockMvc e `@MockitoBean` para os clientes de IA):
+- [`SmartBudgetApiIntegrationTest`](src/test/java/br/com/devlopes/smartbudget/controller/SmartBudgetApiIntegrationTest.java): endpoints REST, chat, voz, isolamento por `X-Session-Id`, CORS explícito, validação de áudio sem extensão, limite de caracteres e garantia de não vazamento em erro `502`.
+- [`ApiSecurityFilterTest`](src/test/java/br/com/devlopes/smartbudget/config/ApiSecurityFilterTest.java): autenticação `X-Internal-Api-Key`, liberação de `/health` e rate limiting (`429` + `Retry-After`).
+- [`FinancialToolsIntegrationTest`](src/test/java/br/com/devlopes/smartbudget/tools/FinancialToolsIntegrationTest.java): execução real das `@Tool` no H2, sinônimos em português e detecção de `deficitAlert`.
+- [`AiProviderRouterTest`](src/test/java/br/com/devlopes/smartbudget/service/AiProviderRouterTest.java), [`AudioServiceTest`](src/test/java/br/com/devlopes/smartbudget/service/AudioServiceTest.java) e [`TransactionServiceTest`](src/test/java/br/com/devlopes/smartbudget/service/TransactionServiceTest.java): roteamento, fallback, validação de mídia e regras financeiras.

@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-label="Arquitetura do Finance-AI-Service — Spring AI Tool Calling, Whisper STT e Roteamento Multi-Provedor Groq + Gemini">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#120F17" />
+      <stop offset="55%" stop-color="#191323" />
+      <stop offset="100%" stop-color="#1A1526" />
+    </linearGradient>
+    <radialGradient id="purpleOrangeGlow" cx="80%" cy="20%" r="55%">
+      <stop offset="0%" stop-color="#FF6200" stop-opacity="0.2" />
+      <stop offset="50%" stop-color="#8B5CF6" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#120F17" stop-opacity="0" />
+    </radialGradient>
+    <marker id="arrowOrange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#FF8A3D" />
+    </marker>
+    <marker id="arrowSky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#38BDF8" />
+    </marker>
+    <marker id="arrowEmerald" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#34D399" />
+    </marker>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="600" rx="24" fill="url(#bgGrad)" />
+  <rect width="1200" height="600" rx="24" fill="url(#purpleOrangeGlow)" />
+  <rect x="1" y="1" width="1198" height="598" rx="23" fill="none" stroke="#2D2638" stroke-width="1.5" />
+
+  <!-- Header -->
+  <rect x="36" y="28" width="246" height="28" rx="14" fill="#FF6200" fill-opacity="0.16" stroke="#FF6200" stroke-opacity="0.45" />
+  <text x="159" y="46" text-anchor="middle" class="sans" font-size="11.5" font-weight="700" fill="#FFA066" letter-spacing="0.6">SPRING AI 1.0 · MULTIMODAL</text>
+  <text x="36" y="88" class="sans" font-size="25" font-weight="700" fill="#FFFFFF">Finance-AI-Service — Assistente Financeiro com Tool Calling</text>
+  <text x="36" y="112" class="sans" font-size="13.5" fill="#A8A2B3">Voz (Whisper STT) + Texto com Memória · Roteador Multi-Provedor (Groq + Fallback Gemini) · Persistência Neon PostgreSQL</text>
+
+  <!-- Column 1: Multimodal Entry + Security -->
+  <g transform="translate(36, 150)">
+    <rect width="232" height="368" rx="16" fill="#1C1726" stroke="#322B40" stroke-width="1.5" />
+    <rect x="16" y="14" width="126" height="22" rx="11" fill="#10B981" fill-opacity="0.18" />
+    <text x="79" y="29" text-anchor="middle" class="sans" font-size="10.5" font-weight="700" fill="#6EE7B7">BORDA &amp; ENTRADAS</text>
+
+    <g transform="translate(16, 48)">
+      <rect width="200" height="72" rx="10" fill="#251F31" stroke="#383049" />
+      <text x="12" y="20" class="sans" font-size="11.5" font-weight="700" fill="#6EE7B7">Segurança &amp; Sessão</text>
+      <text x="12" y="37" class="sans" font-size="10" fill="#C9C3D4">ApiSecurityFilter (Key + Rate Limit)</text>
+      <text x="12" y="51" class="sans" font-size="10" fill="#C9C3D4">SessionContextFilter (X-Session-Id)</text>
+      <text x="12" y="64" class="sans" font-size="10" fill="#A8A2B3">AI 15 rpm · Escrita 40 rpm · /health</text>
+    </g>
+
+    <g transform="translate(16, 132)">
+      <rect width="200" height="66" rx="10" fill="#251F31" stroke="#FF6200" stroke-opacity="0.45" />
+      <text x="12" y="21" class="mono" font-size="10.5" font-weight="700" fill="#FFA066">POST /api/v1/assistant/voice</text>
+      <text x="12" y="39" class="sans" font-size="10.5" fill="#FFFFFF">Upload Áudio (&lt;= 5MB)</text>
+      <text x="12" y="55" class="sans" font-size="10" fill="#B8B2C4">Valida MIME + Extensão + Nome seguro</text>
+    </g>
+
+    <g transform="translate(16, 210)">
+      <rect width="200" height="66" rx="10" fill="#251F31" stroke="#38BDF8" stroke-opacity="0.45" />
+      <text x="12" y="21" class="mono" font-size="10.5" font-weight="700" fill="#7DD3FC">POST /api/v1/assistant/chat</text>
+      <text x="12" y="39" class="sans" font-size="10.5" fill="#FFFFFF">Texto + Histórico (até 10 msgs)</text>
+      <text x="12" y="55" class="sans" font-size="10" fill="#B8B2C4">Contexto contínuo p/ planos e metas</text>
+    </g>
+
+    <g transform="translate(16, 288)">
+      <rect width="200" height="64" rx="10" fill="#251F31" stroke="#383049" />
+      <text x="12" y="21" class="mono" font-size="10.5" font-weight="700" fill="#D8B4FE">/api/v1/transactions/**</text>
+      <text x="12" y="39" class="sans" font-size="10.5" fill="#FFFFFF">CRUD REST &amp; Resumo SQL</text>
+      <text x="12" y="54" class="sans" font-size="10" fill="#B8B2C4">Auditoria direta, filtros e déficit</text>
+    </g>
+  </g>
+
+  <!-- Arrows Col 1 -> Col 2 -->
+  <line x1="268" y1="296" x2="306" y2="296" stroke="#FF8A3D" stroke-width="2" marker-end="url(#arrowOrange)" />
+  <path d="M 268 470 C 480 470, 560 470, 668 470" fill="none" stroke="#34D399" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrowEmerald)" />
+
+  <!-- Column 2: AudioService + AiProviderRouter -->
+  <g transform="translate(314, 150)">
+    <rect width="318" height="292" rx="16" fill="#1C1726" stroke="#FF6200" stroke-opacity="0.6" stroke-width="1.8" />
+    <rect x="16" y="14" width="218" height="22" rx="11" fill="#FF6200" />
+    <text x="125" y="29" text-anchor="middle" class="sans" font-size="10.5" font-weight="700" fill="#FFFFFF">ORQUESTRAÇÃO DE IA &amp; RESILIÊNCIA</text>
+
+    <!-- AudioService mini box -->
+    <g transform="translate(16, 48)">
+      <rect width="286" height="58" rx="10" fill="#251F31" stroke="#3C334D" />
+      <text x="12" y="20" class="sans" font-size="12" font-weight="700" fill="#FFFFFF">AudioService (Whisper STT)</text>
+      <text x="12" y="38" class="mono" font-size="10" fill="#FFA066">whisper-large-v3-turbo (idioma pt)</text>
+      <text x="12" y="51" class="sans" font-size="9.5" fill="#A8A2B3">Transcreve voz para texto antes de acionar o LLM</text>
+    </g>
+
+    <!-- AiProviderRouter box -->
+    <g transform="translate(16, 118)">
+      <rect width="286" height="158" rx="12" fill="#251F31" stroke="#3C334D" />
+      <text x="12" y="22" class="sans" font-size="13" font-weight="700" fill="#FFFFFF">AiProviderRouter</text>
+      <text x="12" y="39" class="sans" font-size="10" fill="#B8B2C4">System Prompt consultivo + Guardrails anti-injection</text>
+
+      <!-- Provider 1 -->
+      <rect x="12" y="52" width="126" height="62" rx="8" fill="#1B1626" stroke="#FF6200" stroke-opacity="0.55" />
+      <text x="20" y="69" class="sans" font-size="10" font-weight="700" fill="#FFA066">PRIMÁRIO</text>
+      <text x="20" y="86" class="sans" font-size="12" font-weight="700" fill="#FFFFFF">Groq LPU</text>
+      <text x="20" y="102" class="mono" font-size="9.2" fill="#E2DCEB">openai/gpt-oss-120b</text>
+
+      <!-- Provider 2 -->
+      <rect x="148" y="52" width="126" height="62" rx="8" fill="#1B1626" stroke="#38BDF8" stroke-opacity="0.55" />
+      <text x="156" y="69" class="sans" font-size="10" font-weight="700" fill="#7DD3FC">AUTO-FALLBACK</text>
+      <text x="156" y="86" class="sans" font-size="12" font-weight="700" fill="#FFFFFF">Google Gemini</text>
+      <text x="156" y="102" class="mono" font-size="9.2" fill="#BAE6FD">gemini-3.8-flash</text>
+
+      <text x="12" y="135" class="sans" font-size="10" fill="#6EE7B7">✓ Troca transparente em caso de 429 / 5xx / timeout</text>
+      <text x="12" y="149" class="sans" font-size="10" fill="#A8A2B3">Timeouts HTTP explícitos (connect 10s · read 30s)</text>
+    </g>
+  </g>
+
+  <!-- Arrow Col 2 -> Col 3 -->
+  <line x1="632" y1="296" x2="668" y2="296" stroke="#38BDF8" stroke-width="2" marker-end="url(#arrowSky)" />
+
+  <!-- Column 3: FinancialTools (@Tool) + TransactionService -->
+  <g transform="translate(676, 150)">
+    <rect width="266" height="368" rx="16" fill="#1C1726" stroke="#322B40" stroke-width="1.5" />
+    <rect x="16" y="14" width="174" height="22" rx="11" fill="#38BDF8" fill-opacity="0.18" />
+    <text x="103" y="29" text-anchor="middle" class="sans" font-size="10.5" font-weight="700" fill="#7DD3FC">SPRING AI @TOOL CALLING</text>
+
+    <text x="16" y="60" class="sans" font-size="15.5" font-weight="700" fill="#FFFFFF">FinancialTools</text>
+    <text x="16" y="78" class="sans" font-size="11" fill="#9E97AC">Funções Java tipadas expostas ao LLM</text>
+
+    <g transform="translate(16, 92)">
+      <rect width="234" height="46" rx="9" fill="#251F31" stroke="#383049" />
+      <text x="12" y="20" class="mono" font-size="10.5" font-weight="700" fill="#7DD3FC">registrarTransacao()</text>
+      <text x="12" y="36" class="sans" font-size="10" fill="#B8B2C4">Valida valor &gt; 0, sinônimos PT-BR e teto</text>
+    </g>
+
+    <g transform="translate(16, 146)">
+      <rect width="234" height="46" rx="9" fill="#251F31" stroke="#383049" />
+      <text x="12" y="20" class="mono" font-size="10.5" font-weight="700" fill="#7DD3FC">listarTransacoesPorCategoria()</text>
+      <text x="12" y="36" class="sans" font-size="10" fill="#B8B2C4">Filtros categoria/tipo · cap 50 itens LLM</text>
+    </g>
+
+    <g transform="translate(16, 200)">
+      <rect width="234" height="46" rx="9" fill="#251F31" stroke="#383049" />
+      <text x="12" y="20" class="mono" font-size="10.5" font-weight="700" fill="#7DD3FC">calcularResumoFinanceiro()</text>
+      <text x="12" y="36" class="sans" font-size="10" fill="#B8B2C4">Agregação SQL + deficitAlert real</text>
+    </g>
+
+    <line x1="16" y1="262" x2="250" y2="262" stroke="#2D2638" />
+
+    <g transform="translate(16, 276)">
+      <rect width="234" height="76" rx="10" fill="#1F2925" stroke="#10B981" stroke-opacity="0.35" />
+      <text x="12" y="21" class="sans" font-size="12" font-weight="700" fill="#6EE7B7">TransactionService (Domínio)</text>
+      <text x="12" y="39" class="sans" font-size="10" fill="#D1FAE5">Defesa em profundidade na Entity</text>
+      <text x="12" y="53" class="sans" font-size="10" fill="#D1FAE5">Teto: 200/sessão · 5.000 global</text>
+      <text x="12" y="67" class="sans" font-size="10" fill="#A7F3D0">Limpeza automática @Scheduled (24h)</text>
+    </g>
+  </g>
+
+  <!-- Arrow Col 3 -> Col 4 -->
+  <line x1="942" y1="334" x2="974" y2="334" stroke="#34D399" stroke-width="2" marker-end="url(#arrowEmerald)" />
+
+  <!-- Column 4: Database -->
+  <g transform="translate(982, 196)">
+    <rect width="182" height="276" rx="16" fill="#14231F" stroke="#10B981" stroke-opacity="0.45" stroke-width="1.5" />
+    <text x="16" y="30" class="sans" font-size="10.5" font-weight="700" fill="#34D399" letter-spacing="0.5">BANCO DE DADOS</text>
+    <text x="16" y="56" class="mono" font-size="15" font-weight="700" fill="#FFFFFF">smartbudgetdb</text>
+    <text x="16" y="76" class="sans" font-size="11" fill="#A7F3D0">Neon PostgreSQL (SSL)</text>
+
+    <line x1="16" y1="92" x2="166" y2="92" stroke="#224138" />
+
+    <text x="16" y="116" class="sans" font-size="11" font-weight="700" fill="#FFFFFF">Tabela transactions</text>
+    <text x="16" y="136" class="mono" font-size="10" fill="#A7F3D0">• session_id (idx)</text>
+    <text x="16" y="154" class="mono" font-size="10" fill="#A7F3D0">• description (255)</text>
+    <text x="16" y="172" class="mono" font-size="10" fill="#A7F3D0">• amount (15,2)</text>
+    <text x="16" y="190" class="mono" font-size="10" fill="#A7F3D0">• type / category</text>
+    <text x="16" y="208" class="mono" font-size="10" fill="#A7F3D0">• created_at (idx)</text>
+
+    <rect x="14" y="226" width="154" height="36" rx="8" fill="#1B302A" />
+    <text x="91" y="248" text-anchor="middle" class="sans" font-size="10" font-weight="600" fill="#6EE7B7">H2 automático em dev/test</text>
+  </g>
+
+  <!-- Footer -->
+  <rect x="36" y="540" width="1128" height="36" rx="10" fill="#1C1726" stroke="#2D2638" />
+  <text x="600" y="563" text-anchor="middle" class="sans" font-size="11.5" fill="#B8B2C4">
+    100% testável offline com @MockitoBean (36 testes) · Sem vazamento de erros internos ou chaves de API · Pronto para Docker no Render (512 MB RAM)
+  </text>
+</svg>
